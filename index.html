@@ -74,6 +74,33 @@
     <div class="sc blue"><div class="sl">🏦 Total en cuentas</div><div class="sv c-blue" id="d-bk">$0</div></div>
     <div class="sc yellow"><div class="sl">💰 Total disponible</div><div class="sv c-yellow" id="d-tot">$0</div></div>
   </div>
+  <div class="card" id="card-fondo-emergencia">
+  <div class="fb mb">
+    <div class="fb mb">
+  <div class="fr" style="gap: 8px; align-items: center;">
+    <div class="b ft">🛡️ Fondo de Emergencia</div>
+    <button class="sc green" style="padding: 2px 8px; font-size: 0.8rem; cursor: pointer;" onclick="openM('m-fondo-emergencia')">➕ Abonar</button>
+  </div>
+  <div class="t3" id="fe-meses-cobertura">0.0 meses cubiertos</div>
+</div>
+    <div class="t3" id="fe-meses-cobertura">0.0 meses cubiertos</div>
+  </div>
+  
+  <div class="progress-bar-container" style="background: var(--s3); height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 12px;">
+    <div id="fe-barra-progreso" style="background: var(--a1); height: 100%; width: 0%; transition: width 0.5s ease;"></div>
+  </div>
+
+  <div class="fr">
+    <div>
+      <div class="t3 fs">Dinero Guardado</div>
+      <div class="b" id="fe-dinero-actual">$0</div>
+    </div>
+    <div style="text-align: right;">
+      <div class="t3 fs">Meta Objetivo (6 meses)</div>
+      <div class="b" id="fe-dinero-objetivo">$0</div>
+    </div>
+  </div>
+</div>
   <div class="g4 mb">
     <div class="mc green"><div class="mc-label"><span class="dot" style="background:var(--a1)"></span>Ingreso</div><div class="mc-val c-green" id="d-ing">$0</div><div class="mc-sub">esta quincena</div></div>
     <div class="mc red"><div class="mc-label"><span class="dot" style="background:var(--a3)"></span>Gastado</div><div class="mc-val c-red" id="d-gas">$0</div><div class="mc-sub" id="d-pgc">0% del ingreso</div></div>
@@ -743,6 +770,21 @@
   <div class="fr"><div class="fg"><label for="ag-mo">Monto estimado (COP)</label><input type="number" id="ag-mo" min="0"></div><div class="fg"><label for="ag-fe">Fecha</label><input type="date" id="ag-fe"></div></div>
   <div class="fr"><div class="fg"><label for="ag-re">Repetición</label><select id="ag-re"><option value="unico">Único</option><option value="mensual">Mensual</option></select></div><div class="fg"><label for="ag-fo">Fondo estimado</label><select id="ag-fo"><option value="banco">🏦 Banco</option><option value="efectivo">💵 Efectivo</option></select></div></div>
   <button class="btn bp bfw" onclick="guardarPago()">Agendar pago</button></div>
+</div>
+<div class="modal-ov" id="m-fondo-emergencia" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="fb mb">
+      <div class="mtit">Abonar al Fondo 🛡️</div>
+      <button class="mclose" onclick="closeM('m-fondo-emergencia')">×</button>
+    </div>
+    
+    <div class="fg">
+      <label for="fe-monto-abono">¿Cuánto dinero vas a guardar en este fondo? (COP)</label>
+      <input type="number" id="fe-monto-abono" min="0" placeholder="Ej: 50000">
+    </div>
+
+    <button class="btn bbl bfw" onclick="registrarAbonoFondo()">Guardar en el Fondo</button>
+  </div>
 </div>
 <script type="module" src="main.js"></script>
 </body>
