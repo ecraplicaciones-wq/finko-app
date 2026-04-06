@@ -35,6 +35,7 @@ const storage = {
 // Esta función se encarga de rellenar el estado con valores por defecto si faltan datos
 function hydrateState(d) {
   const S_actualizado = {
+    
     tipoPeriodo: d.tipoPeriodo || 'q1',
     quincena: d.quincena || 1,
     ingreso: d.ingreso || 0,
@@ -54,6 +55,7 @@ function hydrateState(d) {
         ahorro: Object.assign({ objetivo: 0, actual: 0, fechaMeta: '', abonos: [], activo: false }, p.ahorro || {}) 
       }); 
     }),
+    inversiones: d.inversiones || [],
     fondoEmergencia: d.fondoEmergencia || { objetivoMeses: 6, actual: 0 }
   };
 
