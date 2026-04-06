@@ -53,10 +53,10 @@ function hydrateState(d) {
       return Object.assign({}, p, { 
         ahorro: Object.assign({ objetivo: 0, actual: 0, fechaMeta: '', abonos: [], activo: false }, p.ahorro || {}) 
       }); 
-    })
+    }),
+    fondoEmergencia: d.fondoEmergencia || { objetivoMeses: 6, actual: 0 }
   };
 
-  // Guardamos las propiedades limpias dentro del objeto S importado de forma segura
   Object.assign(S, S_actualizado);
 }
 
