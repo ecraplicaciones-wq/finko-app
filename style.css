@@ -587,3 +587,13 @@ body.light-theme .mcd.sel{border-color:var(--a1);background:rgba(0,122,71,.05)}
 body.light-theme .tip{border-left-color:var(--a1)}
 body.light-theme .insight-card{background:var(--s2)}
 body.light-theme .qfreq-item.active{border-color:var(--a1);background:rgba(0,122,71,.06)}
+
+#card-fondo-emergencia {
+  border: 1px solid var(--b1);
+  background: linear-gradient(135deg, var(--s2), var(--s1));
+}
+
+#card-fondo-emergencia .fs {
+  font-size: 0.85rem;
+  margin-bottom: 2px;
+}
