@@ -17,7 +17,7 @@ export function trapModalFocus(ev) {
   }
   else if(!ev.shiftKey && document.activeElement === last) { 
     ev.preventDefault(); 
-    first.focus(); 
+    first.focus();
   }
 }
 
