@@ -15,6 +15,7 @@ export const S = {
   cuentas: [],
   pagosAgendados: [],
   proyectos: [],
+  inversiones: [],
   fondoEmergencia: {
     objetivoMeses: 6, // El estándar recomendado de meses a cubrir
     actual: 0         // Dinero real acumulado para este fondo
