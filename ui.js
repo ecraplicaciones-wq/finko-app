@@ -41,3 +41,34 @@ window.bindGlobalKeyboard = bindGlobalKeyboard;
 window.addEventListener('DOMContentLoaded', () => {
   bindGlobalKeyboard();
 });
+// Función para calcular la salud del Fondo de Emergencia
+export function calcularFondoEmergencia() {
+  // 1. Sumamos el valor de todos los gastos fijos
+  // Asumiendo que la app maneja montos quincenales o mensuales en gastosFijos,
+  // adaptaremos esto para proyectar el gasto mensual real.
+  const gastoMensualFijo = S.gastosFijos.reduce((acc, gasto) => {
+    // Si el gasto es quincenal lo multiplicamos por 2, si es mensual se queda igual.
+    // Ajusta esta lógica según cómo guardes la frecuencia en tu array de gastosFijos.
+    const montoMensual = gasto.quincenal ? gasto.monto * 2 : gasto.monto;
+    return acc + montoMensual;
+  }, 0);
+
+  const montoObjetivoTotal = gastoMensualFijo * S.fondoEmergencia.objetivoMeses;
+  const porcentajeCompletado = montoObjetivoTotal > 0 
+    ? (S.fondoEmergencia.actual / montoObjetivoTotal) * 100 
+    : 0;
+    
+  const mesesCubiertos = gastoMensualFijo > 0 
+    ? S.fondoEmergencia.actual / gastoMensualFijo 
+    : 0;
+
+  return {
+    gastoMensualFijo,
+    montoObjetivoTotal,
+    porcentajeCompletado: Math.min(porcentajeCompletado, 100).toFixed(1),
+    mesesCubiertos: mesesCubiertos.toFixed(1)
+  };
+}
+
+// Recuerda exponerla a window si la invocarás desde el HTML directamente
+window.calcularFondoEmergencia = calcularFondoEmergencia;
