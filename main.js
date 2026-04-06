@@ -1005,8 +1005,42 @@ if (navM) {
 }
 
 // =========================================================
+// FUNCIONES DEL FONDO DE EMERGENCIA (Añadidas)
+// =========================================================
+
+function registrarAbonoFondo() {
+  const inputMonto = document.getElementById('fe-monto-abono');
+  const monto = parseFloat(inputMonto.value);
+
+  // Validación básica
+  if (isNaN(monto) || monto <= 0) {
+    showAlert('Por favor, ingresa un monto válido mayor a cero.');
+    return;
+  }
+
+  // 1. Sumamos el dinero en el Estado global (S)
+  S.fondoEmergencia.actual += monto;
+
+  // 2. Guardamos los datos en Local Storage (usando storage.js)
+  save();
+
+  // 3. Actualizamos la interfaz gráfica (la barra y los textos)
+  actualizarVistaFondo();
+
+  // 4. Limpiamos el campo y cerramos el modal
+  inputMonto.value = '';
+  closeM('m-fondo-emergencia');
+  
+  showAlert('¡Dinero blindado con éxito en tu Fondo de Emergencia! 🛡️');
+}
+
+// =========================================================
 // EXPOSICIÓN GLOBAL PARA EL HTML
 // =========================================================
+
+// Ejecución inicial al cargar el script
+actualizarVistaFondo();
+
 window.go = go;
 window.setPer = setPer;
 window.toggleTheme = window.toggleTheme || toggleTheme; 
@@ -1043,6 +1077,9 @@ window.guardarMeta = guardarMeta;
 window.openAbo = openAbo;
 window.abonarMeta = abonarMeta;
 window.delMeta = delMeta;
+
+// Nueva función de fondo de emergencia expuesta
+window.registrarAbonoFondo = registrarAbonoFondo;
 
 window.guardarDeuda = guardarDeuda;
 window.abrirPagarCuota = abrirPagarCuota;
