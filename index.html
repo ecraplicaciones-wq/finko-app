@@ -393,8 +393,23 @@
     <div class="calc-body closed" id="cdt-body">
       <div class="calc-sep"></div>
       <div class="fg"><label for="cc-cap">Capital inicial (COP)</label><input type="number" id="cc-cap" value="1000000" oninput="cCDT()" min="0"></div>
-      <div class="fr"><div class="fg"><label for="cc-tas">Tasa anual E.A. (%)</label><input type="number" id="cc-tas" value="12.5" oninput="cCDT()" step="0.1" min="0"></div><div class="fg"><label for="cc-dia">Plazo (días)</label><input type="number" id="cc-dia" value="90" oninput="cCDT()" min="1"></div></div>
-      <div class="ckrow mb" onclick="document.getElementById('cc-ret').checked=!document.getElementById('cc-ret').checked;cCDT()"><input type="checkbox" id="cc-ret" checked onclick="event.stopPropagation();cCDT()"><label for="cc-ret">Aplicar retención del 7% sobre los rendimientos</label></div>
+      <div class="fr">
+        <div class="fg"><label for="cc-tas">Tasa anual E.A. (%)</label><input type="number" id="cc-tas" value="12.5" oninput="cCDT()" step="0.1" min="0"></div>
+        <div class="fg"><label for="cc-dia">Plazo (días)</label><input type="number" id="cc-dia" value="90" oninput="cCDT()" min="1"></div>
+      </div>
+      <div class="fg">
+        <label for="cc-per">Pago de intereses</label>
+        <select id="cc-per" onchange="cCDT()">
+          <option value="vencimiento">Al vencimiento (al final del plazo)</option>
+          <option value="30">Mensual</option>
+          <option value="90">Trimestral</option>
+          <option value="180">Semestral</option>
+        </select>
+      </div>
+      <div class="ckrow mb" onclick="document.getElementById('cc-ret').checked=!document.getElementById('cc-ret').checked;cCDT()">
+        <input type="checkbox" id="cc-ret" checked onclick="event.stopPropagation();cCDT()">
+        <label for="cc-ret">Aplicar retención del 7% sobre los rendimientos</label>
+      </div>
       <div class="cres" id="cdt-res"></div>
     </div>
   </div>
@@ -723,12 +738,44 @@
 </div>
 
 <div class="modal-ov" id="m-deu" role="dialog" aria-modal="true">
-  <div class="modal"><div class="fb mb"><div class="mtit">Nueva Deuda 💳</div><button class="mclose" onclick="closeM('m-deu')">×</button></div>
-  <div class="fg"><label for="dn-no">Nombre / Entidad</label><input type="text" id="dn-no" placeholder="Ej: Crédito Banco de Bogotá, cuota celular..."></div>
-  <div class="fr"><div class="fg"><label for="dn-to">Saldo total (COP)</label><input type="number" id="dn-to" min="0"></div><div class="fg"><label for="dn-cu">Cuota (COP)</label><input type="number" id="dn-cu" min="0"></div></div>
-  <div class="fr"><div class="fg"><label for="dn-pe">Periodicidad</label><select id="dn-pe"><option value="quincenal">Quincenal — cada 15 días</option><option value="mensual">Mensual — una vez al mes (Q1)</option></select></div><div class="fg"><label for="dn-nn">Períodos restantes</label><input type="number" id="dn-nn" min="0"></div></div>
-  <div class="fr"><div class="fg"><label for="dn-ta">Tasa mensual (%)</label><input type="number" id="dn-ta" step="0.1" min="0"></div><div class="fg"><label for="dn-ti">Tipo</label><select id="dn-ti"><option value="credito">Crédito bancario</option><option value="tarjeta">Tarjeta crédito</option><option value="libranza">Libranza</option><option value="familiar">Personal</option><option value="otro">Otro</option></select></div></div>
-  <button class="btn bp bfw" onclick="guardarDeuda()">Registrar deuda</button></div>
+  <div class="modal">
+    <div class="fb mb"><div class="mtit">Nueva Deuda 💳</div><button class="mclose" onclick="closeM('m-deu')">×</button></div>
+    
+    <div class="fg"><label for="dn-no">Nombre / Entidad</label><input type="text" id="dn-no" placeholder="Ej: Crédito Banco de Bogotá, cuota celular..."></div>
+    
+    <div class="fr">
+      <div class="fg"><label for="dn-to">Saldo total (COP)</label><input type="number" id="dn-to" min="0"></div>
+      <div class="fg"><label for="dn-cu">Cuota (COP)</label><input type="number" id="dn-cu" min="0"></div>
+    </div>
+    
+    <div class="fr">
+      <div class="fg"><label for="dn-pe">Periodicidad</label><select id="dn-pe"><option value="quincenal">Quincenal — cada 15 días</option><option value="mensual">Mensual — una vez al mes (Q1)</option></select></div>
+      <div class="fg"><label for="dn-nn">Períodos restantes</label><input type="number" id="dn-nn" min="0"></div>
+    </div>
+    
+    <div class="fr">
+      <div class="fg">
+        <label for="dn-ta" style="display:flex; justify-content:space-between; align-items:center;">
+          Tasa mensual (%)
+          <span style="cursor:pointer; background:var(--a4); color:var(--bg); border-radius:50%; width:15px; height:15px; display:inline-flex; align-items:center; justify-content:center; font-size:10px; font-weight:800;" onclick="document.getElementById('hint-tasa').style.display=document.getElementById('hint-tasa').style.display==='none'?'block':'none'" title="¿No sabes tu tasa? Clic aquí">?</span>
+        </label>
+        <input type="number" id="dn-ta" step="0.1" min="0">
+      </div>
+      <div class="fg"><label for="dn-ti">Tipo</label><select id="dn-ti"><option value="credito">Crédito bancario</option><option value="tarjeta">Tarjeta crédito</option><option value="libranza">Libranza</option><option value="familiar">Personal</option><option value="otro">Otro</option></select></div>
+    </div>
+    
+    <div id="hint-tasa" style="display:none; font-size:11px; color:var(--a4); background:rgba(59,158,255,.08); padding:10px 12px; border-radius:var(--r1); margin-bottom:14px; line-height:1.6;">
+      <strong>💡 Tip Financiero:</strong> Si compraste a cuotas con tarjeta de crédito, la tasa suele estar muy cerca a la usura (entre el <strong>1.9% y el 2.2%</strong> mensual). Para estar 100% seguro y aprovechar el Método Avalancha, revisa el PDF de tu último extracto en la sección <em>'Tasas aplicadas'</em>.
+    </div>
+
+    <div class="al alb mb" style="font-size:11px; align-items:center;">
+      <span class="al-icon" style="margin-top:0">💡</span>
+      <div style="flex:1;">¿Esta tarjeta te cobra <strong>Cuota de Manejo</strong>? Ese es un "gasto fantasma". Regístralo por separado para que se descuente automáticamente.</div>
+      <button class="btn bg bsm" onclick="closeM('m-deu'); setTimeout(()=>openM('m-fijo'), 200);">Ir a Fijos</button>
+    </div>
+
+    <button class="btn bp bfw" onclick="guardarDeuda()">Registrar deuda</button>
+  </div>
 </div>
 
 <div class="modal-ov" id="m-pgc" role="dialog" aria-modal="true">
