@@ -1,7 +1,6 @@
 // state.js
 'use strict';
 
-// Exportamos la constante S para que otros archivos puedan importarla
 export const S = {
   tipoPeriodo: 'q1',
   quincena: 1,
@@ -12,12 +11,14 @@ export const S = {
   metas: [],
   deudas: [],
   historial: [],
-  gastosFijos: [], // Aseguramos que el nombre coincide con el que usas en main.js
+  gastosFijos: [], 
   cuentas: [],
   pagosAgendados: [],
-  proyectos: []
+  proyectos: [],
+  fondoEmergencia: {
+    objetivoMeses: 6, // El estándar recomendado de meses a cubrir
+    actual: 0         // Dinero real acumulado para este fondo
+  }
 };
 
-// Exponemos S al objeto window (opcional, pero muy útil si quieres 
-// abrir la consola del navegador F12 y escribir "S" para ver tus datos en vivo)
 window.S = S;
