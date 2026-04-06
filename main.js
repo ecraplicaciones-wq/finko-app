@@ -420,30 +420,43 @@ async function delMeta(id){const ok=await showConfirm('¿Eliminar esta meta de a
 
 async function guardarDeuda(){const no=document.getElementById('dn-no').value.trim();const to=+document.getElementById('dn-to').value;const cu=+document.getElementById('dn-cu').value;if(!no||!to||!cu){await showAlert('Completa nombre, saldo total y cuota.','Campos requeridos');return;}S.deudas.push({id:Date.now(),nombre:no,total:to,cuota:cu,periodicidad:document.getElementById('dn-pe').value,nPeriodos:+document.getElementById('dn-nn').value||0,tasa:+document.getElementById('dn-ta').value||0,tipo:document.getElementById('dn-ti').value,pagado:0});['dn-no','dn-to','dn-cu','dn-ta','dn-nn'].forEach(i=>document.getElementById(i).value='');closeM('m-deu');save();renderAll();}
 
+// --- INICIO: TRACKER DE DEUDAS Y AVALANCHA ---
 function renderDeudas() {
-  let cPer = 0;
-  let cQ = 0;
-  let cM = 0;
+  // 1. Calculamos las sumas base reales SIEMPRE
+  const sumaQuincenales = S.deudas.filter(d => d.periodicidad === 'quincenal').reduce((s, d) => s + d.cuota, 0);
+  const sumaMensuales = S.deudas.filter(d => d.periodicidad === 'mensual').reduce((s, d) => s + d.cuota, 0);
 
+  let cPer = 0;
+  let explicacionMensual = '';
+
+  // 2. Calculamos cuánto toca pagar en el período seleccionado
   if (S.tipoPeriodo === 'mensual') {
-    cQ = S.deudas.filter(d => d.periodicidad === 'quincenal').reduce((s, d) => s + (d.cuota * 2), 0);
-    cM = S.deudas.filter(d => d.periodicidad === 'mensual').reduce((s, d) => s + d.cuota, 0);
-    cPer = cQ + cM;
-    setEl('de-cpl', 'Mes completo (incluye todas)');
+    cPer = (sumaQuincenales * 2) + sumaMensuales;
+    setEl('de-cpl', 'Quincenales x2 + Mensuales');
+    
+    // Banner educativo que explica la matemática (solo si hay deudas quincenales)
+    if (sumaQuincenales > 0) {
+      explicacionMensual = `<div class="al alb mb" style="font-size:11px; align-items:center;"><span class="al-icon" style="margin-top:0">💡</span><div style="flex:1;"><strong>¿Por qué el Total es ${f(cPer)}?</strong> Al ver el mes completo, la app multiplica tus cuotas quincenales (<strong>${f(sumaQuincenales)} x 2</strong>) y le suma tus cuotas mensuales (<strong>${f(sumaMensuales)}</strong>) para darte tu flujo de caja real.</div></div>`;
+    }
   } else {
-    cQ = S.deudas.filter(d => d.periodicidad === 'quincenal').reduce((s, d) => s + d.cuota, 0);
-    cM = (S.tipoPeriodo === 'q1' || S.quincena === 1) ? S.deudas.filter(d => d.periodicidad === 'mensual').reduce((s, d) => s + d.cuota, 0) : 0;
-    cPer = cQ + cM;
-    setEl('de-cpl', (S.tipoPeriodo === 'q1' || S.quincena === 1) ? 'Q1: quincenal + mensual' : 'Q2: solo quincenal');
+    // Si la vista es quincenal
+    if (S.tipoPeriodo === 'q1' || S.quincena === 1) {
+      cPer = sumaQuincenales + sumaMensuales;
+      setEl('de-cpl', 'Q1: quincenal + mensual');
+    } else {
+      cPer = sumaQuincenales;
+      setEl('de-cpl', 'Q2: solo quincenal');
+    }
   }
 
   const totD = S.deudas.reduce((s, d) => s + Math.max(0, d.total - d.pagado), 0);
   const pct = S.ingreso > 0 ? Math.round(cPer / S.ingreso * 100) : 0;
   
+  // 3. Pintamos los valores correctos en las tarjetas
   setEl('de-tot', f(totD));
-  setEl('de-cq', f(cQ));
-  setEl('de-cm', f(cM));
-  setEl('de-cp', f(cPer));
+  setEl('de-cq', f(sumaQuincenales)); // Muestra la cuota base
+  setEl('de-cm', f(sumaMensuales));   // Muestra la cuota base
+  setEl('de-cp', f(cPer));            // Muestra el total con la matemática precisa
   
   const pe = document.getElementById('de-pct');
   if (pe) {
@@ -455,19 +468,31 @@ function renderDeudas() {
   const el = document.getElementById('de-lst');
   
   if (!S.deudas.length) {
-    el.innerHTML = '<div class="emp"><span class="emp-icon">▣</span>Sin deudas registradas 🎉</div>';
+    el.innerHTML = '<div class="emp"><span class="emp-icon">💳</span>Sin deudas registradas 🎉</div>';
     return;
   }
+
+  // LÓGICA MÉTODO AVALANCHA
+  const deudasOrdenadas = [...S.deudas].sort((a, b) => (b.tasa || 0) - (a.tasa || 0));
+  const deudasActivas = deudasOrdenadas.filter(d => (d.total - d.pagado) > 0);
+  const maxTasa = deudasActivas.length > 0 ? deudasActivas[0].tasa : 0;
   
-  el.innerHTML = S.deudas.map(d => {
+  const htmlDeudas = deudasOrdenadas.map(d => {
     const sa = Math.max(0, d.total - d.pagado);
     const p = Math.min(d.pagado / d.total * 100, 100);
     const esM = d.periodicidad === 'mensual';
     const av = esM && (S.tipoPeriodo === 'q2' || S.quincena === 2) ? '<div class="tm" style="margin-top:4px">ℹ️ Esta deuda es mensual — aplica en Q1</div>' : '';
     
-    return `<article class="gc"><div class="fb"><div><div class="gn">💳 ${he(d.nombre)}</div><div class="gm">${TIPOS[d.tipo]} · <span class="pill ${esM ? 'pb' : 'py'}">${esM ? 'Mensual' : 'Quincenal'}</span> · ${d.nPeriodos} períodos rest.</div>${av}</div><div style="display:flex;gap:6px"><button class="btn bg bsm" onclick="abrirPagarCuota(${d.id})">Pagar cuota</button><button class="btn bd bsm" onclick="delDeu(${d.id})">×</button></div></div><div class="ga" style="margin-top:10px"><span class="tm">Saldo: <span class="mono" style="color:var(--dan)">${f(sa)}</span></span><span class="tm">Cuota: <span class="mono">${f(d.cuota)}</span></span><strong style="color:var(--a1);font-family:var(--fm)">${Math.round(p)}% pagado</strong></div><div class="pw" role="progressbar" aria-valuenow="${Math.round(p)}" aria-valuemin="0" aria-valuemax="100"><div class="pf" style="width:${p}%;background:var(--a1)"></div></div></article>`;
+    const esLaMasCara = (d.tasa === maxTasa && d.tasa > 0 && sa > 0);
+    const badgeAvalancha = esLaMasCara ? `<div style="margin-top:10px;padding:8px 12px;background:rgba(255,68,68,.08);border:1px solid rgba(255,68,68,.25);border-radius:var(--r1);font-size:11px;color:var(--dan);line-height:1.5;">🔥 <strong>MÉTODO AVALANCHA:</strong> Esta es tu deuda más cara (${d.tasa}% E.A.). Concéntrate en inyectarle dinero extra a esta tarjeta/crédito primero para ahorrar intereses.</div>` : '';
+    
+    return `<article class="gc"><div class="fb"><div><div class="gn">💳 ${he(d.nombre)}</div><div class="gm">${TIPOS[d.tipo]} · <span class="pill ${esM ? 'pb' : 'py'}">${esM ? 'Mensual' : 'Quincenal'}</span> · ${d.nPeriodos} períodos rest. · Tasa: ${d.tasa}%</div>${av}</div><div style="display:flex;gap:6px"><button class="btn bg bsm" onclick="abrirPagarCuota(${d.id})">Pagar cuota</button><button class="btn bd bsm" onclick="delDeu(${d.id})">×</button></div></div><div class="ga" style="margin-top:10px"><span class="tm">Saldo: <span class="mono" style="color:var(--dan)">${f(sa)}</span></span><span class="tm">Cuota: <span class="mono">${f(d.cuota)}</span></span><strong style="color:var(--a1);font-family:var(--fm)">${Math.round(p)}% pagado</strong></div><div class="pw" role="progressbar" aria-valuenow="${Math.round(p)}" aria-valuemin="0" aria-valuemax="100"><div class="pf" style="width:${p}%;background:var(--a1)"></div></div>${badgeAvalancha}</article>`;
   }).join('');
+
+  // Imprimimos el aviso educativo (si aplica) seguido de la lista de deudas
+  el.innerHTML = explicacionMensual + htmlDeudas;
 }
+// --- FIN: TRACKER DE DEUDAS Y AVALANCHA ---
 
 function abrirPagarCuota(id){const d=S.deudas.find(x=>x.id===id);if(!d)return;setEl('pgc-no',d.nombre);setEl('pgc-mo',f(d.cuota));document.getElementById('pgc-id').value=id;openM('m-pgc');}
 
@@ -558,7 +583,56 @@ function updateDash(){const tG=S.gastos.filter(g=>g.tipo!=='ahorro').reduce((s,g
 
 function toggleCalc(id){const body=document.getElementById(id+'-body');const arr=document.getElementById(id+'-arr');const isOpen=body.classList.contains('open');body.classList.toggle('open',!isOpen);body.classList.toggle('closed',isOpen);if(arr)arr.style.transform=isOpen?'':'rotate(180deg)';if(!isOpen){if(id==='cdt')cCDT();if(id==='cre')cCre();if(id==='ic')cIC();if(id==='ma')cMeta();if(id==='rt')cRet();if(id==='gf')cGMF();if(id==='gf')cGMF();
 if(id==='pila')cPila();}}
-function cCDT(){const cap=+document.getElementById('cc-cap').value||0;const tA=+document.getElementById('cc-tas').value||0;const d=+document.getElementById('cc-dia').value||0;const ret=document.getElementById('cc-ret').checked;if(!cap||!tA||!d){setHtml('cdt-res','<div class="tm">Completa los campos para calcular</div>');return;}const td=Math.pow(1+tA/100,1/365)-1;const rend=(cap*Math.pow(1+td,d))-cap;const r7=ret?rend*0.07:0;const neto=rend-r7;setHtml('cdt-res',`<div style="display:flex;flex-wrap:wrap;gap:14px"><div><div class="crl">Rendimiento bruto</div><div class="mono" style="font-size:16px;font-weight:700">${f(rend)}</div></div>${ret?`<div><div class="crl">Retención 7%</div><div class="mono" style="font-size:16px;font-weight:700;color:var(--dan)">-${f(r7)}</div></div>`:''}<div><div class="crl">💰 Neto a recibir</div><div class="crv">${f(neto)}</div></div><div><div class="crl">Capital final</div><div class="mono" style="font-size:16px;font-weight:700">${f(cap+neto)}</div></div></div>`);}
+function cCDT() {
+  const cap = +document.getElementById('cc-cap').value || 0;
+  const tA = +document.getElementById('cc-tas').value || 0;
+  const d = +document.getElementById('cc-dia').value || 0;
+  const per = document.getElementById('cc-per').value;
+  const ret = document.getElementById('cc-ret').checked;
+
+  if (!cap || !tA || !d) {
+    setHtml('cdt-res', '<div class="tm">Completa los campos para calcular</div>');
+    return;
+  }
+
+  // Lógica bancaria colombiana exacta
+  const tasaEADecimal = tA / 100;
+  let diasPeriodo = per === 'vencimiento' ? d : +per;
+  
+  // Si el usuario pone un plazo (ej. 60 días) menor al periodo de pago (ej. semestral 180), se fuerza al vencimiento
+  if (diasPeriodo > d) diasPeriodo = d;
+
+  // Conversión de Tasa Efectiva Anual a Tasa Periódica
+  const tasaPeriodo = Math.pow(1 + tasaEADecimal, diasPeriodo / 365) - 1;
+  const rendBrutoPeriodo = cap * tasaPeriodo;
+  
+  const numeroPeriodos = d / diasPeriodo;
+  const rendBrutoTotal = rendBrutoPeriodo * numeroPeriodos;
+  const retencionTotal = ret ? rendBrutoTotal * 0.07 : 0;
+  const netoTotal = rendBrutoTotal - retencionTotal;
+
+  // Cálculo de cuánto entra a la cuenta en cada pago
+  const pagoNetoPeriodo = rendBrutoPeriodo - (ret ? rendBrutoPeriodo * 0.07 : 0);
+
+  let htmlExtra = '';
+  // Si eligió pago mensual, trimestral o semestral, le mostramos la cuota exacta
+  if (per !== 'vencimiento' && d > diasPeriodo) {
+    const etiquetaFrec = per === '30' ? 'Mensual' : per === '90' ? 'Trimestral' : 'Semestral';
+    htmlExtra = `<div style="width:100%;height:1px;background:rgba(0,220,130,.2);margin:10px 0"></div>
+                 <div style="width:100%; display:flex; justify-content:space-between; align-items:center">
+                   <div class="crl" style="margin:0">💸 Te consignan cada pago (${etiquetaFrec})</div>
+                   <div class="mono" style="font-size:18px;font-weight:700;color:var(--a1)">${f(pagoNetoPeriodo)}</div>
+                 </div>`;
+  }
+
+  setHtml('cdt-res', `<div style="display:flex;flex-wrap:wrap;gap:14px">
+    <div><div class="crl">Rend. bruto total</div><div class="mono" style="font-size:16px;font-weight:700">${f(rendBrutoTotal)}</div></div>
+    ${ret ? `<div><div class="crl">Retención DIAN 7%</div><div class="mono" style="font-size:16px;font-weight:700;color:var(--dan)">-${f(retencionTotal)}</div></div>` : ''}
+    <div><div class="crl">💰 Ganancia Neta Total</div><div class="crv">${f(netoTotal)}</div></div>
+    <div><div class="crl">Capital al final</div><div class="mono" style="font-size:16px;font-weight:700">${f(cap + netoTotal)}</div></div>
+    ${htmlExtra}
+  </div>`);
+}
 function cCre(){const P=+document.getElementById('cr-mo').value||0;const tm=+document.getElementById('cr-ta').value/100||0;const n=+document.getElementById('cr-n').value||0;if(!P||!tm||!n){setHtml('cre-res','<div class="tm">Completa los campos</div>');return;}const cu=tm===0?P/n:(P*(tm*Math.pow(1+tm,n))/(Math.pow(1+tm,n)-1));const totP=cu*n;const int=totP-P;setHtml('cre-res',`<div style="display:flex;flex-wrap:wrap;gap:14px"><div><div class="crl">💳 Cuota mensual</div><div class="crv">${f(cu)}</div></div><div><div class="crl">Total a pagar</div><div class="mono" style="font-size:16px;font-weight:700;color:var(--a3)">${f(totP)}</div></div><div><div class="crl">Intereses totales</div><div class="mono" style="font-size:16px;font-weight:700;color:var(--dan)">${f(int)}</div></div><div><div class="crl">Costo real</div><div class="mono" style="font-size:16px;font-weight:700">${Math.round(int/P*100)}%</div></div></div>`);}
 function cIC(){const C=+document.getElementById('ic-cap').value||0;const A=+document.getElementById('ic-apo').value||0;const tA=+document.getElementById('ic-tas').value||0;const m=+document.getElementById('ic-mes').value||0;if(!m||!tA){setHtml('ic-res','<div class="tm">Completa los campos</div>');return;}const tm=Math.pow(1+tA/100,1/12)-1;const vf=tm>0?C*Math.pow(1+tm,m)+A*(Math.pow(1+tm,m)-1)/tm:C+A*m;const ap=C+A*m;setHtml('ic-res',`<div style="display:flex;flex-wrap:wrap;gap:14px"><div><div class="crl">Total aportado</div><div class="mono" style="font-size:16px;font-weight:700">${f(ap)}</div></div><div><div class="crl">🌱 Valor final</div><div class="crv">${f(vf)}</div></div><div><div class="crl">Ganancia por interés</div><div class="mono" style="font-size:16px;font-weight:700;color:var(--a1)">${f(vf-ap)}</div></div></div>`);}
 function cMeta(){const M=+document.getElementById('ma-tot').value||0;const T=+document.getElementById('ma-ten').value||0;const fe=document.getElementById('ma-fe').value;if(!M||!fe){setHtml('ma-res','<div class="tm">Completa meta y fecha</div>');return;}const falta=Math.max(0,M-T);const dias=Math.max(0,Math.ceil((new Date(fe)-new Date())/86400000));const q=Math.max(1,Math.floor(dias/15));const ms=Math.max(1,Math.floor(dias/30));setHtml('ma-res',`<div style="display:flex;flex-wrap:wrap;gap:14px"><div><div class="crl">Falta ahorrar</div><div class="mono" style="font-size:16px;font-weight:700;color:var(--a3)">${f(falta)}</div></div><div><div class="crl">💰 Por quincena</div><div class="crv">${f(falta/q)}</div></div><div><div class="crl">Por mes</div><div class="mono" style="font-size:16px;font-weight:700">${f(falta/ms)}</div></div><div><div class="crl">Tiempo</div><div class="mono" style="font-size:16px;font-weight:700">${q} quincenas</div></div></div>`);}
