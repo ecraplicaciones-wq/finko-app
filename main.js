@@ -6,7 +6,7 @@ import './theme.js';
 const CATS={alimentacion:'🍽️ Alimentación',transporte:'🚌 Transporte',vivienda:'🏠 Vivienda',servicios:'💡 Servicios',salud:'🏥 Salud',entretenimiento:'🎬 Entretenimiento',ropa:'👕 Ropa',tecnologia:'💻 Tecnología',hormiga:'🐜 Hormiga',deudas:'💳 Deudas',ahorro:'💰 Ahorro',otro:'📦 Otro'};
 const PCATS={comida:'🍽️ Comida',hotel:'🏨 Hotel',transporte:'🚌 Transporte',fiesta:'🎉 Fiesta',compras:'🛍️ Compras',entradas:'🎟️ Entradas',otro:'📦 Otro'};
 const CCOLORS={alimentacion:'#00dc82',transporte:'#3b9eff',vivienda:'#b44eff',servicios:'#ffd60a',salud:'#ff6b35',entretenimiento:'#ff4eb8',ropa:'#00e5cc',tecnologia:'#4eb8ff',hormiga:'#ff9944',deudas:'#ff4444',ahorro:'#00dc82',otro:'#666'};
-const NAVS=['dash','quin','gast','fijo','meta','deu','proy','agen','calc','stat','hist','cons'];
+const NAVS=['dash','quin','gast','fijo','meta','inve','deu','proy','agen','calc','stat','hist','cons'];
 
 // --- NUEVO SISTEMA DE PAGO DE GASTOS FIJOS ---
 let idFijoPendiente = null;
@@ -72,7 +72,6 @@ async function ejecutarPagoFijo(fondoElegido) {
   sr(`Gasto fijo pagado desde ${fondoElegido === 'efectivo' ? 'Efectivo' : 'Banco'}`);
 }
 
-// Esta es la función correcta que busca tu botón HTML
 function marcarFijo(id) {
   abrirModalFijo(id);
 }
@@ -90,9 +89,8 @@ function initApp() {
     if(b){ const ni = b.querySelector('.ni'); if(ni) ni.textContent='🌙'; }
   }
   
-  // Ejecutamos todas tus funciones de inicio
   loadData();
-  updateBadge(); // Aquí pintamos el calendario
+  updateBadge();
   populateSelectMetas();
   renderAll();
   renderTips();
@@ -117,7 +115,6 @@ function initApp() {
   }, 1000);
 }
 
-// Verifica si el HTML ya cargó antes de ejecutar
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initApp);
 } else {
@@ -131,7 +128,7 @@ function updateBadge(){
   if(el) el.textContent = txt;
 }
 
-function renderAll(){renderGastos();updateDash();renderMetas();renderDeudas();renderFijos();renderProyectos();renderPagos();renderHistorial();updSaldo();renderStats();renderCuentas();renderDashCuentas();}
+function renderAll(){renderGastos();updateDash();renderMetas();renderInversiones();renderDeudas();renderFijos();renderProyectos();renderPagos();renderHistorial();updSaldo();renderStats();renderCuentas();renderDashCuentas();}
 
 function go(id){
   if (window.innerWidth <= 768) {
@@ -543,16 +540,56 @@ function updateDash(){const tG=S.gastos.filter(g=>g.tipo!=='ahorro').reduce((s,g
   setHtml('d-bud',bar('🏠 Necesidades',rN,bN,'var(--a4)')+bar('🎉 Deseos',rD,bD,'var(--a2)')+bar('💰 Ahorro',tA,bA,'var(--a1)'));
   } else {
   setHtml('d-bud', '<div class="emp"><span class="emp-icon">◎</span>Configura tu quincena para ver la distribución</div>');
-  }const antI={};S.gastos.filter(g=>g.hormiga).forEach(g=>{antI[g.desc]=(antI[g.desc]||0)+g.monto;});const aEl=document.getElementById('d-ant'),aEmp=document.getElementById('d-ante');if(!Object.keys(antI).length){if(aEl)aEl.innerHTML='';if(aEmp)aEmp.style.display='block';}else{if(aEmp)aEmp.style.display='none';if(aEl)aEl.innerHTML=Object.entries(antI).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([d,m])=>`<div class="fb" style="margin-bottom:8px;font-size:12px"><span>🐜 ${he(d)}</span><span class="mono" style="color:var(--a3);font-weight:600">${f(m)}</span></div>`).join('');}setHtml('d-rec',S.gastos.length?S.gastos.slice(0,6).map(g=>`<tr><td class="mono" style="font-size:10px">${g.fecha}</td><td>${he(g.desc)}</td><td><span class="pill ${g.tipo==='necesidad'?'pb':g.tipo==='ahorro'?'pg':'py'}">${g.tipo}</span></td><td><span class="pill ${g.fondo==='efectivo'?'py':'pb'}">${g.fondo==='efectivo'?'💵':'🏦'}</span></td><td class="ac mono" style="color:${g.tipo==='ahorro'?'var(--a1)':'var(--a3)'};font-weight:600">${f(g.montoTotal||g.monto)}</td></tr>`).join(''):'<tr><td colspan="5" class="emp">Sin movimientos</td></tr>');const al=[];if(S.saldos.efectivo===0&&S.saldos.banco===0&&S.ingreso>0)al.push(`<div class="al alb"><span class="al-icon">💡</span>Saldos en $0. Ve a <strong>Quincena</strong> y configura cuánto tienes en efectivo y banco.</div>`);if(tG>S.ingreso*0.9&&S.ingreso>0)al.push(`<div class="al ald"><span class="al-icon">🚨</span>Gastas más del 90% de tu ingreso esta quincena. Revisa urgente.</div>`);if(tH>S.ingreso*0.15&&S.ingreso>0)al.push(`<div class="al alw"><span class="al-icon">🐜</span>Gastos hormiga superan el 15% del ingreso (${f(tH)}).</div>`);if(tA===0&&S.gastos.length>3)al.push(`<div class="al alw"><span class="al-icon">💰</span>Sin ahorro registrado esta quincena. ¡Págate a ti primero!</div>`);const cPer=S.deudas.filter(d=>d.periodicidad==='quincenal').reduce((s,d)=>s+d.cuota,0)+(S.quincena===1?S.deudas.filter(d=>d.periodicidad==='mensual').reduce((s,d)=>s+d.cuota,0):0);if(cPer>S.ingreso*0.3&&S.ingreso>0)al.push(`<div class="al ald"><span class="al-icon">💳</span>Cuotas superan el 30% del ingreso — zona de riesgo.</div>`);const mes=mesStr();const fijNP=S.gastosFijos.filter(g=>!g.pagadoEn.includes(mes));if(fijNP.length)al.push(`<div class="al alb"><span class="al-icon">📌</span><strong>${fijNP.length}</strong> gasto(s) fijo(s) sin pagar este mes: ${fijNP.map(g=>g.nombre).join(', ')}.</div>`);setHtml('d-alr',al.join(''));}
+  }const antI={};S.gastos.filter(g=>g.hormiga).forEach(g=>{antI[g.desc]=(antI[g.desc]||0)+g.monto;});const aEl=document.getElementById('d-ant'),aEmp=document.getElementById('d-ante');if(!Object.keys(antI).length){if(aEl)aEl.innerHTML='';if(aEmp)aEmp.style.display='block';}else{if(aEmp)aEmp.style.display='none';if(aEl)aEl.innerHTML=Object.entries(antI).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([d,m])=>`<div class="fb" style="margin-bottom:8px;font-size:12px"><span>🐜 ${he(d)}</span><span class="mono" style="color:var(--a3);font-weight:600">${f(m)}</span></div>`).join('');}setHtml('d-rec',S.gastos.length?S.gastos.slice(0,6).map(g=>`<tr><td class="mono" style="font-size:10px">${g.fecha}</td><td>${he(g.desc)}</td><td><span class="pill ${g.tipo==='necesidad'?'pb':g.tipo==='ahorro'?'pg':'py'}">${g.tipo}</span></td><td><span class="pill ${g.fondo==='efectivo'?'py':'pb'}">${g.fondo==='efectivo'?'💵':'🏦'}</span></td><td class="ac mono" style="color:${g.tipo==='ahorro'?'var(--a1)':'var(--a3)'};font-weight:600">${f(g.montoTotal||g.monto)}</td></tr>`).join(''):'<tr><td colspan="5" class="emp">Sin movimientos</td></tr>');const al=[];
+  // --- INICIO: TERMÓMETRO DIAN ---
+  const anioActual = new Date().getFullYear().toString();
+  let ingresosAnio = S.ingreso; 
+  S.historial.forEach(h => {
+    if (h.periodo && h.periodo.includes(anioActual)) {
+      ingresosAnio += h.ingreso;
+    }
+  });
+  const topeAlerta = 50000000; // Alerta temprana a los 50 Millones
+  if (ingresosAnio >= topeAlerta) {
+    al.push(`<div class="al alw"><span class="al-icon">🏛️</span><strong>Alerta DIAN:</strong> Tus ingresos este año suman <strong>${f(ingresosAnio)}</strong>. Te estás acercando al tope para declarar renta. Habla con tu contador.</div>`);
+  }
+  // --- FIN: TERMÓMETRO DIAN ---
+  if(S.saldos.efectivo===0&&S.saldos.banco===0&&S.ingreso>0)al.push(`<div class="al alb"><span class="al-icon">💡</span>Saldos en $0. Ve a <strong>Quincena</strong> y configura cuánto tienes en efectivo y banco.</div>`);if(tG>S.ingreso*0.9&&S.ingreso>0)al.push(`<div class="al ald"><span class="al-icon">🚨</span>Gastas más del 90% de tu ingreso esta quincena. Revisa urgente.</div>`);if(tH>S.ingreso*0.15&&S.ingreso>0)al.push(`<div class="al alw"><span class="al-icon">🐜</span>Gastos hormiga superan el 15% del ingreso (${f(tH)}).</div>`);if(tA===0&&S.gastos.length>3)al.push(`<div class="al alw"><span class="al-icon">💰</span>Sin ahorro registrado esta quincena. ¡Págate a ti primero!</div>`);const cPer=S.deudas.filter(d=>d.periodicidad==='quincenal').reduce((s,d)=>s+d.cuota,0)+(S.quincena===1?S.deudas.filter(d=>d.periodicidad==='mensual').reduce((s,d)=>s+d.cuota,0):0);if(cPer>S.ingreso*0.3&&S.ingreso>0)al.push(`<div class="al ald"><span class="al-icon">💳</span>Cuotas superan el 30% del ingreso — zona de riesgo.</div>`);const mes=mesStr();const fijNP=S.gastosFijos.filter(g=>!g.pagadoEn.includes(mes));if(fijNP.length)al.push(`<div class="al alb"><span class="al-icon">📌</span><strong>${fijNP.length}</strong> gasto(s) fijo(s) sin pagar este mes: ${fijNP.map(g=>g.nombre).join(', ')}.</div>`);setHtml('d-alr',al.join(''));}
 
-function toggleCalc(id){const body=document.getElementById(id+'-body');const arr=document.getElementById(id+'-arr');const isOpen=body.classList.contains('open');body.classList.toggle('open',!isOpen);body.classList.toggle('closed',isOpen);if(arr)arr.style.transform=isOpen?'':'rotate(180deg)';if(!isOpen){if(id==='cdt')cCDT();if(id==='cre')cCre();if(id==='ic')cIC();if(id==='ma')cMeta();if(id==='rt')cRet();if(id==='gf')cGMF();}}
+function toggleCalc(id){const body=document.getElementById(id+'-body');const arr=document.getElementById(id+'-arr');const isOpen=body.classList.contains('open');body.classList.toggle('open',!isOpen);body.classList.toggle('closed',isOpen);if(arr)arr.style.transform=isOpen?'':'rotate(180deg)';if(!isOpen){if(id==='cdt')cCDT();if(id==='cre')cCre();if(id==='ic')cIC();if(id==='ma')cMeta();if(id==='rt')cRet();if(id==='gf')cGMF();if(id==='gf')cGMF();
+if(id==='pila')cPila();}}
 function cCDT(){const cap=+document.getElementById('cc-cap').value||0;const tA=+document.getElementById('cc-tas').value||0;const d=+document.getElementById('cc-dia').value||0;const ret=document.getElementById('cc-ret').checked;if(!cap||!tA||!d){setHtml('cdt-res','<div class="tm">Completa los campos para calcular</div>');return;}const td=Math.pow(1+tA/100,1/365)-1;const rend=(cap*Math.pow(1+td,d))-cap;const r7=ret?rend*0.07:0;const neto=rend-r7;setHtml('cdt-res',`<div style="display:flex;flex-wrap:wrap;gap:14px"><div><div class="crl">Rendimiento bruto</div><div class="mono" style="font-size:16px;font-weight:700">${f(rend)}</div></div>${ret?`<div><div class="crl">Retención 7%</div><div class="mono" style="font-size:16px;font-weight:700;color:var(--dan)">-${f(r7)}</div></div>`:''}<div><div class="crl">💰 Neto a recibir</div><div class="crv">${f(neto)}</div></div><div><div class="crl">Capital final</div><div class="mono" style="font-size:16px;font-weight:700">${f(cap+neto)}</div></div></div>`);}
 function cCre(){const P=+document.getElementById('cr-mo').value||0;const tm=+document.getElementById('cr-ta').value/100||0;const n=+document.getElementById('cr-n').value||0;if(!P||!tm||!n){setHtml('cre-res','<div class="tm">Completa los campos</div>');return;}const cu=tm===0?P/n:(P*(tm*Math.pow(1+tm,n))/(Math.pow(1+tm,n)-1));const totP=cu*n;const int=totP-P;setHtml('cre-res',`<div style="display:flex;flex-wrap:wrap;gap:14px"><div><div class="crl">💳 Cuota mensual</div><div class="crv">${f(cu)}</div></div><div><div class="crl">Total a pagar</div><div class="mono" style="font-size:16px;font-weight:700;color:var(--a3)">${f(totP)}</div></div><div><div class="crl">Intereses totales</div><div class="mono" style="font-size:16px;font-weight:700;color:var(--dan)">${f(int)}</div></div><div><div class="crl">Costo real</div><div class="mono" style="font-size:16px;font-weight:700">${Math.round(int/P*100)}%</div></div></div>`);}
 function cIC(){const C=+document.getElementById('ic-cap').value||0;const A=+document.getElementById('ic-apo').value||0;const tA=+document.getElementById('ic-tas').value||0;const m=+document.getElementById('ic-mes').value||0;if(!m||!tA){setHtml('ic-res','<div class="tm">Completa los campos</div>');return;}const tm=Math.pow(1+tA/100,1/12)-1;const vf=tm>0?C*Math.pow(1+tm,m)+A*(Math.pow(1+tm,m)-1)/tm:C+A*m;const ap=C+A*m;setHtml('ic-res',`<div style="display:flex;flex-wrap:wrap;gap:14px"><div><div class="crl">Total aportado</div><div class="mono" style="font-size:16px;font-weight:700">${f(ap)}</div></div><div><div class="crl">🌱 Valor final</div><div class="crv">${f(vf)}</div></div><div><div class="crl">Ganancia por interés</div><div class="mono" style="font-size:16px;font-weight:700;color:var(--a1)">${f(vf-ap)}</div></div></div>`);}
 function cMeta(){const M=+document.getElementById('ma-tot').value||0;const T=+document.getElementById('ma-ten').value||0;const fe=document.getElementById('ma-fe').value;if(!M||!fe){setHtml('ma-res','<div class="tm">Completa meta y fecha</div>');return;}const falta=Math.max(0,M-T);const dias=Math.max(0,Math.ceil((new Date(fe)-new Date())/86400000));const q=Math.max(1,Math.floor(dias/15));const ms=Math.max(1,Math.floor(dias/30));setHtml('ma-res',`<div style="display:flex;flex-wrap:wrap;gap:14px"><div><div class="crl">Falta ahorrar</div><div class="mono" style="font-size:16px;font-weight:700;color:var(--a3)">${f(falta)}</div></div><div><div class="crl">💰 Por quincena</div><div class="crv">${f(falta/q)}</div></div><div><div class="crl">Por mes</div><div class="mono" style="font-size:16px;font-weight:700">${f(falta/ms)}</div></div><div><div class="crl">Tiempo</div><div class="mono" style="font-size:16px;font-weight:700">${q} quincenas</div></div></div>`);}
 function cRet(){const ren=+document.getElementById('rt-ren').value||0;const ta=+document.getElementById('rt-tip').value||0;const ret=ren*ta;setHtml('rt-res',`<div style="display:flex;gap:14px;flex-wrap:wrap"><div><div class="crl">Retención</div><div class="mono" style="font-size:16px;font-weight:700;color:var(--dan)">${f(ret)}</div></div><div><div class="crl">💰 Neto a recibir</div><div class="crv">${f(ren-ret)}</div></div></div>`);}
 function cGMF(){const mo=+document.getElementById('gf-mo').value||0;const gmf=mo*0.004;setHtml('gf-res',`<div style="display:flex;gap:14px;flex-wrap:wrap"><div><div class="crl">GMF 4×1000</div><div class="mono" style="font-size:16px;font-weight:700;color:var(--a2)">${f(gmf)}</div></div><div><div class="crl">Total debitado</div><div class="crv">${f(mo+gmf)}</div></div></div>`);}
+function cPila(){
+  const ing = +document.getElementById('pl-ing').value || 0;
+  const arlTasa = +document.getElementById('pl-arl').value || 0.00522;
+  if(!ing){ setHtml('pila-res','<div class="tm">Ingresa tus honorarios para calcular</div>'); return; }
 
+  // En Colombia el IBC es el 40% del ingreso, pero nunca menor a 1 SMLMV (usamos 1.300.000 como base para 2024/2025)
+  const smlmv = 1300000;
+  let ibc = ing * 0.40;
+  if(ibc < smlmv && ing >= smlmv) ibc = smlmv; // Por ley el IBC no puede ser menor al mínimo si ganas más del mínimo
+
+  const salud = ibc * 0.125;
+  const pension = ibc * 0.16;
+  const arl = ibc * arlTasa;
+  const totalPila = salud + pension + arl;
+  const neto = ing - totalPila;
+
+  setHtml('pila-res', `<div style="display:flex;flex-wrap:wrap;gap:14px">
+    <div><div class="crl">Base Cotización (IBC)</div><div class="mono" style="font-size:14px;color:var(--t2)">${f(ibc)}</div></div>
+    <div><div class="crl">Salud 12.5%</div><div class="mono" style="font-size:14px">${f(salud)}</div></div>
+    <div><div class="crl">Pensión 16%</div><div class="mono" style="font-size:14px">${f(pension)}</div></div>
+    <div><div class="crl">ARL</div><div class="mono" style="font-size:14px">${f(arl)}</div></div>
+    <div style="width:100%;height:1px;background:var(--b2);margin:2px 0"></div>
+    <div><div class="crl">Total a Pagar (PILA)</div><div class="mono" style="font-size:18px;font-weight:700;color:var(--a3)">${f(totalPila)}</div></div>
+    <div><div class="crl">💰 Dinero Libre (Neto)</div><div class="crv">${f(neto)}</div></div>
+  </div>`);
+}
 function renderStats(){const mes=mesStr();const catT={};S.gastos.filter(g=>g.tipo!=='ahorro'&&g.fecha&&g.fecha.startsWith(mes)).forEach(g=>{catT[g.cat]=(catT[g.cat]||0)+(g.montoTotal||g.monto);});S.historial.filter(h=>h.mes===mes&&h.catMap).forEach(h=>{Object.entries(h.catMap).forEach(([cat,val])=>{catT[cat]=(catT[cat]||0)+val;});});const tot=Object.values(catT).reduce((s,v)=>s+v,0);if(tot>0){const segs=Object.entries(catT).map(([c,v])=>({v,color:CCOLORS[c]||'#666',label:CATS[c]||c,pct:Math.round(v/tot*100)})).sort((a,b)=>b.v-a.v);setHtml('pie-c',donut(segs));setHtml('pie-l',segs.map(s=>`<div class="leg-row"><div class="leg-dot" style="background:${s.color}"></div><span style="flex:1;font-size:12px">${s.label}</span><span class="mono" style="font-size:11px;color:var(--t3)">${s.pct}%</span><span class="mono" style="font-size:11px;margin-left:8px;font-weight:600">${f(s.v)}</span></div>`).join(''));
 const maxCat=Math.max(...Object.values(catT),1);setHtml('stat-cats',Object.entries(catT).sort((a,b)=>b[1]-a[1]).map(([cat,val])=>{const pct=val/maxCat*100;const exceso=S.ingreso>0?val/S.ingreso*100:0;const alerta=exceso>30?'<span class="pill pr" style="font-size:9px">Alto</span>':exceso>15?'<span class="pill py" style="font-size:9px">Moderado</span>':'';return`<div class="stat-bar-row"><div class="stat-bar-label">${CATS[cat]||cat} ${alerta}</div><div class="stat-bar-wrap"><div class="stat-bar-fill" style="width:${pct}%;background:${CCOLORS[cat]||'#666'}"></div></div><div class="stat-bar-val">${f(val)}<span class="mono" style="color:var(--t3);font-size:10px;margin-left:4px">${exceso>0?Math.round(exceso)+'%':''}</span></div></div>`;}).join(''));}else{setHtml('pie-c','<div class="emp"><span class="emp-icon">◱</span>Sin gastos este mes para graficar</div>');setHtml('stat-cats','<div class="emp">Sin datos</div>');}
 const bEl=document.getElementById('bar-c');if(S.historial.length&&bEl){const rec=S.historial.slice(0,8).reverse();bEl.innerHTML=`<div style="overflow-x:auto" tabindex="0"><table><thead><tr><th>Período</th><th>Ingreso</th><th>Gastado</th><th>Ahorro</th><th>% Ahorro</th><th>% Hormiga</th><th>Tendencia</th></tr></thead><tbody>${rec.map(hx=>{const pA=hx.ingreso>0?Math.round(hx.ahorro/hx.ingreso*100):0;const pH=hx.ingreso>0?Math.round(hx.hormiga/hx.ingreso*100):0;const w=hx.ingreso>0?Math.min(hx.ahorro/hx.ingreso*100,100):0;const col=pA>=20?'var(--a1)':pA>=10?'var(--a2)':'var(--dan)';return`<tr><td style="font-size:11px;font-weight:600">${hx.periodo}</td><td class="ac mono" style="font-size:11px">${f(hx.ingreso)}</td><td class="ac mono" style="font-size:11px;color:var(--a3)">${f(hx.gastado)}</td><td class="ac mono" style="font-size:11px;color:var(--a1)">${f(hx.ahorro)}</td><td class="ac"><strong style="color:${col}">${pA}%</strong></td><td class="ac"><span style="color:${pH>15?'var(--dan)':pH>10?'var(--a2)':'var(--t3)'}">${pH}%</span></td><td style="min-width:80px;padding-right:12px"><div style="height:8px;background:var(--s3);border-radius:999px;overflow:hidden"><div style="height:100%;border-radius:999px;width:${w}%;background:${col};transition:width .6s ease"></div></div></td></tr>`;}).join('')}</tbody></table></div>`;const promA=rec.reduce((s,h)=>s+h.ahorro,0)/rec.length;const promH=rec.reduce((s,h)=>s+h.hormiga,0)/rec.length;const mejor=rec.reduce((b,h)=>h.ahorro>b.ahorro?h:b,rec[0]);setEl('st-ap',f(promA));setEl('st-hp',f(promH));setEl('st-mj',f(mejor.ahorro));
@@ -1008,6 +1045,13 @@ if (navM) {
 // FUNCIONES DEL FONDO DE EMERGENCIA (Añadidas)
 // =========================================================
 
+function actualizarVistaFondo() {
+  const elActual = document.getElementById('fe-dinero-actual');
+  if(elActual) {
+    elActual.textContent = f(S.fondoEmergencia.actual);
+  }
+}
+
 function registrarAbonoFondo() {
   const inputMonto = document.getElementById('fe-monto-abono');
   const monto = parseFloat(inputMonto.value);
@@ -1040,6 +1084,126 @@ function registrarAbonoFondo() {
 
 // Ejecución inicial al cargar el script
 actualizarVistaFondo();
+
+// --- MÓDULO DE INVERSIONES ---
+async function guardarInversion(){
+  const no=document.getElementById('inv-no').value.trim();
+  const pl=document.getElementById('inv-pl').value.trim();
+  const cap=+document.getElementById('inv-cap').value||0;
+  const ta=+document.getElementById('inv-ta').value||0;
+  
+  if(!no||!pl||!cap){ await showAlert('Completa el nombre, plataforma y capital inicial.','Campos requeridos'); return; }
+  
+  const fo = document.getElementById('inv-fo').value;
+  if(fo) desF(fo, cap); // Descuenta el dinero del saldo disponible
+  
+  S.gastos.unshift({ id: Date.now(), desc: `📈 Inversión: ${no} (${pl})`, monto: cap, montoTotal: cap, cat: 'ahorro', tipo: 'ahorro', fondo: fo||'banco', hormiga: false, cuatroXMil: false, fecha: hoy(), metaId: '', autoFijo: false });
+  
+  S.inversiones.push({ id:Date.now(), nombre:no, plataforma:pl, capital:cap, rendimiento:0, tasa:ta });
+  
+  ['inv-no','inv-pl','inv-cap','inv-ta'].forEach(i=>document.getElementById(i).value='');
+  closeM('m-inversion'); save(); renderAll(); sr('Inversión registrada');
+}
+
+function renderInversiones(){
+  const el=document.getElementById('inv-lst');
+  if(!el) return;
+  const totCap = S.inversiones.reduce((s,i)=>s+i.capital,0);
+  const totRend = S.inversiones.reduce((s,i)=>s+i.rendimiento,0);
+  setEl('inv-tot-cap', f(totCap));
+  setEl('inv-tot-rend', f(totRend));
+  setEl('inv-tot-gral', f(totCap + totRend));
+  
+  if(!S.inversiones.length){
+    el.innerHTML='<div class="emp"><span class="emp-icon">📈</span>No tienes inversiones. Empieza con un CDT, fondos o acciones.</div>';
+    return;
+  }
+  
+  el.innerHTML=S.inversiones.map(i=>{
+    const total = i.capital + i.rendimiento;
+    const rentabilidad = i.capital > 0 ? ((i.rendimiento / i.capital) * 100).toFixed(1) : 0;
+    return `<article class="gc"><div class="fb"><div><div class="gn">📊 ${he(i.nombre)}</div><div class="gm">${he(i.plataforma)} · Tasa obj: ${i.tasa}% E.A.</div></div><div style="display:flex;gap:6px"><button class="btn bg bsm" onclick="openRendimiento(${i.id},'${he(i.nombre)}')">Actualizar Valor</button><button class="btn bd bsm" onclick="delInversion(${i.id})">×</button></div></div>
+    <div style="display:flex;gap:16px;margin-top:12px;font-size:11px;background:var(--s3);padding:10px;border-radius:var(--r1)">
+      <div><div class="tm">Capital Invertido</div><div class="mono" style="font-weight:600">${f(i.capital)}</div></div>
+      <div><div class="tm">Rendimientos</div><div class="mono" style="font-weight:600;color:var(--a1)">+${f(i.rendimiento)}</div></div>
+      <div><div class="tm">Valor Actual</div><div class="mono" style="font-weight:700;font-size:14px;color:var(--a4)">${f(total)}</div></div>
+      <div style="margin-left:auto;text-align:right"><div class="tm">Rent. Neta</div><div class="mono" style="color:var(--a1);font-weight:700">${rentabilidad}%</div></div>
+    </div></article>`;
+  }).join('');
+}
+
+function openRendimiento(id, n){
+  document.getElementById('rend-id').value = id;
+  document.getElementById('rend-t').textContent = 'Actualizar: ' + n;
+  document.getElementById('rend-val').value = '';
+  openM('m-rendimiento');
+}
+
+function guardarRendimiento(){
+  const id = +document.getElementById('rend-id').value;
+  const nuevoValor = +document.getElementById('rend-val').value;
+  if(!nuevoValor) return;
+  
+  const inv = S.inversiones.find(x => x.id === id);
+  if(inv) inv.rendimiento = nuevoValor - inv.capital; 
+  
+  closeM('m-rendimiento'); save(); renderInversiones();
+}
+
+async function delInversion(id){
+  const ok=await showConfirm('¿Eliminar esta inversión del portafolio?\n\nEl dinero no volverá a tus saldos de quincena automáticamente.','Eliminar inversión');
+  if(!ok) return;
+  S.inversiones=S.inversiones.filter(x=>x.id!==id);
+  save(); renderInversiones();
+}
+
+// --- MÓDULO DE PRIMAS Y BONOS ESTACIONALES ---
+function calcPrima() {
+  const m = +document.getElementById('prm-mo').value || 0;
+  if(!m) { setHtml('prm-res', ''); return; }
+  
+  // Regla 30-40-30
+  const deu = m * 0.30;
+  const aho = m * 0.40;
+  const lib = m * 0.30;
+  
+  setHtml('prm-res', `
+    <div style="margin:14px 0;padding:14px;background:rgba(0,220,130,.04);border:1px solid rgba(0,220,130,.2);border-radius:var(--r2)">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3);margin-bottom:10px;letter-spacing:1px">Distribución Inteligente Sugerida:</div>
+      <div class="fb" style="font-size:13px;margin-bottom:6px;border-bottom:1px solid var(--b1);padding-bottom:6px"><span>💳 Adelantar Deudas (30%)</span><span class="mono" style="font-weight:700;color:var(--a3)">${f(deu)}</span></div>
+      <div class="fb" style="font-size:13px;margin-bottom:6px;border-bottom:1px solid var(--b1);padding-bottom:6px"><span>🛡️ Ahorro / Inversión (40%)</span><span class="mono" style="font-weight:700;color:var(--a1)">${f(aho)}</span></div>
+      <div class="fb" style="font-size:13px"><span>🎉 Gustos libres (30%)</span><span class="mono" style="font-weight:700;color:var(--a2)">${f(lib)}</span></div>
+    </div>
+  `);
+}
+
+async function guardarPrima() {
+  const mo = +document.getElementById('prm-mo').value;
+  if(!mo) return;
+  const fo = document.getElementById('prm-fo').value || 'banco';
+  
+  // 1. Sumamos la plata al ingreso de esta quincena para que los gráficos funcionen
+  S.ingreso += mo; 
+  const inputPri = document.getElementById('q-pri');
+  if(inputPri) inputPri.value = S.ingreso; 
+  
+  // 2. Sumamos la plata a la cuenta bancaria / efectivo
+  refF(fo, mo);
+  
+  // 3. Registramos en el historial para saber que entró plata extra
+  S.gastos.unshift({ id: Date.now(), desc: `🎉 Ingreso Extra (Prima/Bono)`, monto: mo, montoTotal: mo, cat: 'otro', tipo: 'ahorro', fondo: fo, hormiga: false, cuatroXMil: false, fecha: hoy(), metaId: '', autoFijo: false });
+  
+  closeM('m-prima');
+  document.getElementById('prm-mo').value = '';
+  setHtml('prm-res', '');
+  
+  save();
+  calcDist(); // Recalcula la barra
+  renderAll();
+  go('dash');
+  
+  await showAlert(`¡Excelente! Has sumado ${f(mo)} a tu capital.\n\nRecuerda el plan:\n- Usa ${f(mo*0.3)} para pagar la deuda más cara.\n- Transfiere ${f(mo*0.4)} a Nu, Tyba o tu CDT.\n- ¡Disfruta los ${f(mo*0.3)} restantes sin culpa!`, 'Dinero Registrado');
+}
 
 window.go = go;
 window.setPer = setPer;
@@ -1079,6 +1243,7 @@ window.abonarMeta = abonarMeta;
 window.delMeta = delMeta;
 
 // Nueva función de fondo de emergencia expuesta
+window.actualizarVistaFondo = actualizarVistaFondo;
 window.registrarAbonoFondo = registrarAbonoFondo;
 
 window.guardarDeuda = guardarDeuda;
@@ -1105,10 +1270,18 @@ window.cIC = window.cIC || (()=>console.log('cIC'));
 window.cMeta = window.cMeta || (()=>console.log('cMeta'));
 window.cRet = window.cRet || (()=>console.log('cRet'));
 window.cGMF = window.cGMF || (()=>console.log('cGMF'));
+window.cPila = cPila || (()=>console.log('cPila'));
 
 window.exportarDatos = exportarDatos;
 window.exportarCSV = exportarCSV;
 window.cerrarQ = cerrarQ;
+
+window.guardarInversion = guardarInversion;
+window.openRendimiento = openRendimiento;
+window.guardarRendimiento = guardarRendimiento;
+window.delInversion = delInversion;
+window.calcPrima = calcPrima;
+window.guardarPrima = guardarPrima;
 
 window.importarDatos = importarDatos;
 window.guardarCuenta = guardarCuenta;
