@@ -1,0 +1,40 @@
+# ==========================================
+# ARCHIVO: .gitignore
+# OBJETIVO: Decirle a Git qué archivos NO debe subir a tu repositorio 
+# en internet (GitHub) por seguridad o porque simplemente son basura.
+# ==========================================
+
+# 1. Archivos basura del Sistema Operativo
+# (Las computadoras Mac crean estos archivos ocultos en cada carpeta. No sirven de nada en internet)
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# (Windows crea estos archivos ocultos para guardar las miniaturas de imágenes)
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# 2. Carpetas de Editores de Código
+# (Contienen tu configuración personal de colores y atajos de VS Code. 
+# Esto es privado tuyo, no va en el código fuente público)
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# 3. Logs y Depuración
+# (Archivos de texto larguísimos que se crean si hay errores. Solo ensucian el código)
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 4. Dependencias y Entornos (Preparación para el futuro)
+# (Si algún día decides usar contraseñas secretas en un archivo .env, 
+# ¡ESTA REGLA EVITA QUE TUS CONTRASEÑAS SE SUBAN A INTERNET Y TE HACKEEN!)
+node_modules/
+.env
+.env.local
