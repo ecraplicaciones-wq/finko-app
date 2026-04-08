@@ -32,7 +32,7 @@
   </div>
   <nav>
     <button class="nb active" onclick="go('dash')" title="Dashboard"><span class="ni">🏠</span><span class="nb-txt">Dashboard</span></button>
-    <button class="nb" onclick="go('quin')" title="Quincena"><span class="ni">💰</span><span class="nb-txt">Quincena</span></button>
+    <button class="nb" onclick="go('quin')" title="Quincena"><span class="ni">💰</span><span class="nb-txt">Planificar</span></button>
     <button class="nb" onclick="go('gast')" title="Gastos"><span class="ni">💸</span><span class="nb-txt">Gastos</span></button>
     <button class="nb" onclick="go('fijo')" title="Fijos"><span class="ni">📌</span><span class="nb-txt">Fijos</span></button>
     <button class="nb" onclick="go('objetivos')" title="Objetivos"><span class="ni">🎯</span><span class="nb-txt">Objetivos</span></button>
@@ -53,28 +53,86 @@
 <main id="main" role="main">
 
   <section class="sec active" id="sec-dash">
-    <div class="sh"><div class="sh-left"><div class="sh-icon green">🏠</div><div><div class="st">Balance General</div><div class="ss">Tu salud financiera de un vistazo</div></div></div><div class="sh-actions"><button class="btn bp bsm" onclick="go('quin')">+ Nueva quincena</button></div></div>
+    
+    <div class="sh">
+      <div class="sh-left">
+        <div class="sh-icon green">🏠</div>
+        <div><div class="st">Balance General</div><div class="ss">Tu salud financiera de un vistazo</div></div>
+      </div>
+      <div class="sh-actions"><button class="btn bp bsm" onclick="go('quin')">+ Nueva quincena</button></div>
+    </div>
     
     <div class="g3 mb" role="region" aria-label="Saldos actuales">
-      <div class="sc green"><div class="sl">💵 Efectivo en mano</div><div class="sv c-green" id="d-ef">$0</div></div>
-      <div class="sc blue"><div class="sl">🏦 Total en cuentas</div><div class="sv c-blue" id="d-bk">$0</div></div>
-      <div class="sc yellow"><div class="sl">💰 Total disponible</div><div class="sv c-yellow" id="d-tot">$0</div></div>
-    </div>
-    
-    <div class="card mb" id="card-fondo-emergencia">
-      <div class="fb mb"><div style="display:flex; align-items:center; gap:10px;"><span class="ct" style="margin:0">🛡️ Fondo de Emergencia</span><button class="btn bg bsm" onclick="openM('m-fondo-emergencia')">+ Abonar</button></div><div class="tm" id="fe-meses-cobertura">0.0 meses cubiertos</div></div>
-      <div class="pw" style="height:10px; margin-bottom:14px;"><div class="pf" id="fe-barra-progreso" style="width: 0%; background: var(--a1);"></div></div>
-      <div class="fb">
-        <div><div class="tm">Dinero Guardado</div><div class="mono" style="font-size:22px; font-weight:700; color:var(--a1);" id="fe-dinero-actual">$0</div></div>
-        <div style="text-align: right;"><div class="tm">Falta por ahorrar</div><div class="mono" style="font-size:22px; font-weight:700; color:var(--t2);" id="fe-dinero-objetivo">$0</div></div>
+      
+      <div class="sc green" style="position:relative;">
+        <div class="sl">💵 Efectivo en mano</div>
+        <div class="sv c-green" id="d-ef">$0</div>
+        <button class="btn bg bsm" onclick="editEfectivoDash()" style="position:absolute; top:12px; right:12px; padding:4px 8px; font-size:11px;" title="Actualizar efectivo">✏️</button>
       </div>
+      
+      <div class="sc blue">
+        <div class="sl">🏦 Total en cuentas</div>
+        <div class="sv c-blue" id="d-bk">$0</div>
+      </div>
+      
+      <div class="sc yellow">
+        <div class="sl">💰 Total disponible</div>
+        <div class="sv c-yellow" id="d-tot">$0</div>
+      </div>
+      
     </div>
     
+    <div class="card mb" style="border-color:rgba(59,158,255,.2)">
+      <div class="fb mb">
+        <span class="ct" style="margin:0">🏦 Mis cuentas</span>
+        <button class="btn bbl bsm" onclick="openM('m-cuenta')">+ Agregar cuenta</button>
+      </div>
+      <div id="d-cuentas"><div class="tm">Sin cuentas. Agrégalas aquí.</div></div>
+    </div>
+
+    <div id="d-alr" aria-live="assertive" role="alert"></div>
+
+    <div class="card mb">
+      <div class="ct">Próximos pagos 📅</div>
+      <div id="d-prox"><div class="emp"><span class="emp-icon">▦</span>Sin pagos agendados</div></div>
+    </div>
+
     <div class="g4 mb">
       <div class="mc green"><div class="mc-label"><span class="dot" style="background:var(--a1)"></span>Ingreso</div><div class="mc-val c-green" id="d-ing">$0</div><div class="mc-sub">esta quincena</div></div>
       <div class="mc red"><div class="mc-label"><span class="dot" style="background:var(--a3)"></span>Gastado</div><div class="mc-val c-red" id="d-gas">$0</div><div class="mc-sub" id="d-pgc">0% del ingreso</div></div>
       <div class="mc blue"><div class="mc-label"><span class="dot" style="background:var(--a4)"></span>Ahorro</div><div class="mc-val c-blue" id="d-aho">$0</div><div class="mc-sub">registrado</div></div>
       <div class="mc yellow"><div class="mc-label"><span class="dot" style="background:var(--a2)"></span>Hormiga 🐜</div><div class="mc-val c-yellow" id="d-hor">$0</div><div class="mc-sub" id="d-phc">0% del ingreso</div></div>
+    </div>
+    
+    <div class="g2 mb">
+      <div class="card"><div class="ct">Presupuesto quincenal</div><div id="d-bud"><div class="emp"><span class="emp-icon">◎</span>Configura tu quincena para ver la distribución</div></div></div>
+      <div class="card"><div class="ct">Gastos Hormiga 🐜</div><div id="d-ant"></div><div id="d-ante" class="emp" style="padding:16px 0"><span style="font-size:24px;display:block;margin-bottom:6px;opacity:.4">🐜</span>Sin gastos hormiga registrados</div></div>
+    </div>
+
+    <div class="g2 mb">
+      <div class="card" id="card-fondo-emergencia">
+        <div class="fb mb"><div style="display:flex; align-items:center; gap:10px;"><span class="ct" style="margin:0">🛡️ Fondo de Emergencia</span><button class="btn bg bsm" onclick="openM('m-fondo-emergencia')">+ Abonar</button></div><div class="tm" id="fe-meses-cobertura">0.0 meses cubiertos</div></div>
+        <div class="pw" style="height:10px; margin-bottom:14px;"><div class="pf" id="fe-barra-progreso" style="width: 0%; background: var(--a1);"></div></div>
+        <div class="fb">
+          <div><div class="tm">Dinero Guardado</div><div class="mono" style="font-size:22px; font-weight:700; color:var(--a1);" id="fe-dinero-actual">$0</div></div>
+          <div style="text-align: right;"><div class="tm">Falta por ahorrar</div><div class="mono" style="font-size:22px; font-weight:700; color:var(--t2);" id="fe-dinero-objetivo">$0</div></div>
+        </div>
+      </div>
+      
+      <div class="card">
+        <div class="ct">Objetivos activos 🎯</div>
+        <div id="d-met"><div class="emp"><span class="emp-icon">◯</span>Sin objetivos creados</div></div>
+      </div>
+    </div>
+
+    <div class="card mb">
+      <div class="ct">Últimos movimientos</div>
+      <div style="overflow-x:auto" tabindex="0">
+        <table>
+          <thead><tr><th>Fecha</th><th>Descripción</th><th>Tipo</th><th>Fondo</th><th class="ac">Monto</th></tr></thead>
+          <tbody id="d-rec"><tr><td colspan="5" class="emp">Sin movimientos registrados</td></tr></tbody>
+        </table>
+      </div>
     </div>
     
     <div class="card accent-blue mb">
@@ -86,97 +144,70 @@
       </div>
       <div class="div"></div><div class="tm" style="margin-top:6px" id="m-det"></div><div class="tm" style="color:var(--t3);font-size:10px;margin-top:4px">Este panel muestra el flujo contable. Los saldos reales (arriba) reflejan el dinero disponible hoy.</div>
     </div>
-    
-    <div class="g2 mb">
-      <div class="card"><div class="ct">Presupuesto quincenal</div><div id="d-bud"><div class="emp"><span class="emp-icon">◎</span>Configura tu quincena para ver la distribución</div></div></div>
-      <div class="card"><div class="ct">Gastos Hormiga 🐜</div><div id="d-ant"></div><div id="d-ante" class="emp" style="padding:16px 0"><span style="font-size:24px;display:block;margin-bottom:6px;opacity:.4">🐜</span>Sin gastos hormiga registrados</div></div>
-    </div>
-    
-    <div class="card mb" style="border-color:rgba(59,158,255,.2)">
-      <div class="fb mb"><span class="ct" style="margin:0">🏦 Mis cuentas</span><button class="btn bbl bsm" onclick="go('quin')">Gestionar</button></div>
-      <div id="d-cuentas"><div class="tm">Sin cuentas. Agrégalas en Quincena.</div></div>
-    </div>
-    
-    <div class="g2 mb">
-      <div class="card"><div class="ct">Objetivos activos 🎯</div><div id="d-met"><div class="emp"><span class="emp-icon">◯</span>Sin objetivos creados</div></div></div>
-      <div class="card"><div class="ct">Próximos pagos 📅</div><div id="d-prox"><div class="emp"><span class="emp-icon">▦</span>Sin pagos agendados</div></div></div>
-    </div>
-    
-    <div class="card mb">
-      <div class="ct">Últimos movimientos</div>
-      <div style="overflow-x:auto" tabindex="0">
-      <table><thead><tr><th>Fecha</th><th>Descripción</th><th>Tipo</th><th>Fondo</th><th class="ac">Monto</th></tr></thead>
-      <tbody id="d-rec"><tr><td colspan="5" class="emp">Sin movimientos registrados</td></tr></tbody></table>
-      </div>
-    </div>
-    <div id="d-alr" aria-live="assertive" role="alert"></div>
+
   </section>
 
   <section class="sec" id="sec-quin">
     <div class="sh">
-      <div class="sh-left"><div class="sh-icon green">💰</div><div><div class="st">Configurar Quincena</div><div class="ss">Ingreso, saldos y distribución</div></div></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn bd bsm" onclick="resetQuincena()" style="display:flex;align-items:center;gap:6px">↺ Resetear quincena</button>
-      <button class="btn" onclick="resetTodo()" style="display:flex;align-items:center;gap:6px;background:rgba(255,68,68,.18);color:var(--dan);font-size:11px;padding:5px 11px;border-radius:6px">🗑️ Borrar todo</button>
-      <button class="btn byw bsm" onclick="openM('m-prima')" style="display:flex;align-items:center;gap:6px">🎉 Ingresar Prima/Bono</button>
+      <div class="sh-left">
+        <div class="sh-icon green">🧭</div>
+        <div><div class="st">Planificar Período</div><div class="ss">Dale un propósito a cada peso que tienes hoy</div></div>
       </div>
-    </div>
-    <div class="ct">Frecuencia de tu presupuesto</div>
-    <div class="qtabs" role="tablist">
-      <div class="qtab active" onclick="setPer('q1', this)" role="tab" tabindex="0"><span>Quincenal</span><strong>Días 1 – 15</strong></div>
-      <div class="qtab" onclick="setPer('q2', this)" role="tab" tabindex="0"><span>Quincenal</span><strong>Días 16 – 31</strong></div>
-      <div class="qtab" onclick="setPer('mensual', this)" role="tab" tabindex="0"><span>Mensual</span><strong>Mes Completo</strong></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn bd bsm" onclick="resetQuincena()" title="Limpia los gastos actuales sin borrar tus cuentas">↺ Reiniciar período</button>
+        <button class="btn" onclick="resetTodo()" style="display:flex;align-items:center;gap:6px;background:rgba(255,68,68,.18);color:var(--dan);font-size:11px;padding:5px 11px;border-radius:6px" title="Borrar toda la base de datos">🗑️ Borrar todo</button>
+      </div>
     </div>
     
     <div class="g2">
-      <div>
-        <div class="card mb">
-          <div class="ct">💵 Ingresos de esta quincena</div>
-          <div class="fg"><label for="q-pri">Salario / Ingreso principal (COP)</label><input type="number" id="q-pri" placeholder="Ej: 1.500.000" oninput="calcDist()" min="0"></div>
-          <div class="fg"><label for="q-ext">Ingresos adicionales (freelance, ventas...)</label><input type="number" id="q-ext" placeholder="Ej: 200.000" oninput="calcDist()" min="0"></div>
-          <div class="div"></div>
-          
-          <div class="ct">🏦 Saldos actuales</div>
-          <div class="tm mb" style="line-height:1.7">Ingresa cuánto tienes disponible ahora. Déjalo en blanco si no quieres cambiar el saldo actual.</div>
-          <div class="fr">
-            <div class="fg"><label for="q-ef">💵 Efectivo que tengo</label><input type="number" id="q-ef" placeholder="Déjalo vacío para no cambiar" min="0"></div>
-            <div class="fg"><label for="q-bk">🏦 Banco / Nequi / Nu</label><input type="number" id="q-bk" placeholder="Déjalo vacío para no cambiar" min="0"></div>
-          </div>
-          
-          <div style="background:var(--s2);border:1px solid var(--b1);border-radius:var(--r1);padding:10px 14px;margin-bottom:14px;font-size:11px;color:var(--t3)">
-            Saldo registrado: 💵 <span id="q-efc" style="color:var(--a1);font-family:var(--fm);font-weight:600">$0</span> &nbsp;|&nbsp; 🏦 <span id="q-bkc" style="color:var(--a4);font-family:var(--fm);font-weight:600">$0</span>
-          </div>
-          <div class="div"></div>
-          
-          <div class="fg"><select id="q-met" onchange="onMetCh()">
-            <option value="50-30-20">50/30/20 — Balanceado (Recomendado)</option>
-            <option value="50-20-30">50/20/30 — Ahorro Agresivo</option>
-            <option value="70-20-10">70/20/10 — Gastos Altos (Ajustado)</option>
-            <option value="60-30-10">60/30/10 — Flexible</option>
-            <option value="custom">100% Personalizado</option>
-          </select></div>
-          <div id="cus-pct" style="display:none">
-            <div class="fr"><div class="fg"><label for="pn">% Necesidades</label><input type="number" id="pn" value="50" oninput="calcDist()" min="0" max="100"></div><div class="fg"><label for="pd">% Deseos</label><input type="number" id="pd" value="30" oninput="calcDist()" min="0" max="100"></div><div class="fg"><label for="pa">% Ahorro</label><input type="number" id="pa" value="20" oninput="calcDist()" min="0" max="100"></div></div>
-          </div>
-          <button class="btn bp bfw" onclick="guardarQ()">Guardar quincena ✓</button>
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        
+        <div class="card" style="background: linear-gradient(135deg, rgba(0,220,130,.1), rgba(0,229,204,.05)); border-color: rgba(0,220,130,.25); padding: 24px;">
+          <div class="ct" style="color:var(--a1); margin-bottom:8px;">💰 Capital Total Disponible</div>
+          <div class="mc-val" id="q-total-disp" style="font-size:36px; color:var(--a1)">$0</div>
+          <div class="tm" style="margin-top:10px; line-height:1.5;">Este es el dinero real (Efectivo + Cuentas). Agrega o edita tus cuentas desde el Dashboard.</div>
         </div>
         
-        <div class="card mt">
-          <div class="fb mb"><span class="ct" style="margin:0">🏦 Mis cuentas y entidades</span><button class="btn bp bsm" onclick="openM('m-cuenta')">+ Agregar cuenta</button></div>
-          <div id="cu-lst"><div class="tm">Sin cuentas configuradas.</div></div>
+        <div class="card">
+          <div class="ct">Frecuencia del Presupuesto</div>
+          <p class="tm mb">¿Para cuánto tiempo debe rendirte este dinero?</p>
+          <div class="qtabs" role="tablist">
+            <div class="qtab active" onclick="setPer('q1', this)" role="tab" tabindex="0"><span>Quincena</span><strong>Días 1 – 15</strong></div>
+            <div class="qtab" onclick="setPer('q2', this)" role="tab" tabindex="0"><span>Quincena</span><strong>Días 16 – 31</strong></div>
+            <div class="qtab" onclick="setPer('mensual', this)" role="tab" tabindex="0"><span>Mensual</span><strong>Mes Completo</strong></div>
+          </div>
+        </div>
+
+        <div class="card accent-yellow" style="padding:20px; text-align:center;">
+           <div style="font-size:32px; margin-bottom:10px;">🎉</div>
+           <div class="st" style="font-size:18px; margin-bottom:6px;">¿Llegó Prima o Bono?</div>
+           <div class="tm mb" style="line-height:1.5;">No dejes que se vuelva dinero de bolsillo. Usa nuestro simulador para dividirlo inteligentemente antes de gastarlo.</div>
+           <button class="btn byw bfw" onclick="openM('m-prima')">Simular distribución</button>
         </div>
       </div>
       
-      <div class="card">
-        <div class="ct">Vista previa de tu distribución</div>
-        <div id="q-prev"><div class="emp"><span class="emp-icon">◎</span>Ingresa tu salario para ver cómo se distribuye</div></div>
-        <div class="div"></div>
-        <div class="ct">Métodos disponibles</div>
-        <div class="gap">
-          <div class="mcd sel" onclick="selM(this,'50-30-20')"><div class="mn">50/30/20 <span class="pill pg">Recomendado</span></div><div class="md">50% necesidades · 30% deseos · 20% ahorro.</div></div>
-          <div class="mcd" onclick="selM(this,'50-20-30')"><div class="mn">50/20/30 <span class="pill pb">Ahorro Agresivo</span></div><div class="md">50% necesidades · 20% deseos · 30% ahorro.</div></div>
-          <div class="mcd" onclick="selM(this,'70-20-10')"><div class="mn">70/20/10 <span class="pill py">Ajustado</span></div><div class="md">70% necesidades · 20% deseos · 10% ahorro.</div></div>
-          <div class="mcd" onclick="selM(this,'custom')" style="border-style: dashed; border-color: var(--b3)"><div class="mn">⚙️ 100% Personalizado</div><div class="md">Define exactamente los porcentajes que mejor se adapten a tu realidad.</div></div>
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="card">
+          <div class="ct">Vista previa de tu distribución</div>
+          <div id="q-prev"><div class="emp"><span class="emp-icon">💸</span>Cargando presupuesto...</div></div>
+          <div class="div"></div>
+          <div class="ct">Métodos disponibles</div>
+          <div class="gap">
+            <div class="mcd sel" onclick="selM(this,'50-30-20')"><div class="mn">50/30/20 <span class="pill pg">Recomendado</span></div><div class="md">50% necesidades · 30% deseos · 20% ahorro.</div></div>
+            <div class="mcd" onclick="selM(this,'50-20-30')"><div class="mn">50/20/30 <span class="pill pb">Ahorro Agresivo</span></div><div class="md">50% necesidades · 20% deseos · 30% ahorro.</div></div>
+            <div class="mcd" onclick="selM(this,'70-20-10')"><div class="mn">70/20/10 <span class="pill py">Ajustado</span></div><div class="md">70% necesidades · 20% deseos · 10% ahorro.</div></div>
+            <div class="mcd" onclick="selM(this,'custom')" style="border-style: dashed; border-color: var(--b3)"><div class="mn">⚙️ 100% Personalizado</div><div class="md">Define exactamente los porcentajes que mejor se adapten a tu realidad.</div></div>
+          </div>
+          
+          <input type="hidden" id="q-met" value="50-30-20">
+          <div id="cus-pct" style="display:none; margin-top: 14px;">
+            <div class="fr">
+              <div class="fg"><label for="pn">% Necesidades</label><input type="number" id="pn" value="50" oninput="calcDist()" min="0" max="100"></div>
+              <div class="fg"><label for="pd">% Deseos</label><input type="number" id="pd" value="30" oninput="calcDist()" min="0" max="100"></div>
+              <div class="fg"><label for="pa">% Ahorro</label><input type="number" id="pa" value="20" oninput="calcDist()" min="0" max="100"></div>
+            </div>
+          </div>
+          <button class="btn bp bfw" onclick="guardarQ()" style="margin-top:16px; padding:16px; font-size:14px;">Fijar Presupuesto Base ✓</button>
         </div>
       </div>
     </div>
@@ -530,7 +561,23 @@
 
 <div class="modal-ov" id="cdlg-ov" role="dialog" aria-modal="true" style="z-index:300"><div class="modal" style="max-width:400px;"><div class="fb mb"><div class="mtit" id="cdlg-title" style="margin:0"></div><button class="mclose" onclick="_cdlgRes(false)">×</button></div><div style="background:var(--s2);padding:16px;margin-bottom:20px;"><div id="cdlg-msg" style="font-size:13px;color:var(--t2);white-space:pre-wrap"></div><div id="cdlg-input-wrap" style="display:none;margin-top:14px"><input type="text" id="cdlg-input"></div></div><div class="fr gap"><button class="btn bg" id="cdlg-cancel" onclick="_cdlgRes(false)" style="flex:1">Cancelar</button><button class="btn bp" id="cdlg-ok" onclick="_cdlgRes(true)" style="flex:1">Aceptar</button></div></div></div>
 
-<div class="modal-ov" id="modal-pagar-fijo" role="dialog" aria-modal="true"><div class="modal"><div class="fb mb"><div class="mtit">Pagar Fijo 📌</div><button class="mclose" onclick="cerrarModalFijo()">×</button></div><div style="background:var(--s2);padding:14px;margin-bottom:18px"><div id="mf-nombre" style="font-weight:700"></div><div id="mf-monto" style="font-family:var(--fm);font-size:22px;color:var(--a3);font-weight:700"></div></div><div class="ct">¿De qué fondo pagas?</div><div style="display:flex;gap:12px;margin-top:10px"><button class="btn bg" onclick="ejecutarPagoFijo('efectivo')" style="flex:1;padding:20px;flex-direction:column">💵 Efectivo</button><button class="btn bg" onclick="ejecutarPagoFijo('banco')" style="flex:1;padding:20px;flex-direction:column">🏦 Banco</button></div></div></div>
+<div class="modal-ov" id="modal-pagar-fijo" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="fb mb">
+      <div class="mtit">Pagar Fijo 📌</div>
+      <button class="mclose" onclick="cerrarModalFijo()">×</button>
+    </div>
+    <div style="background:var(--s2);padding:14px;margin-bottom:18px">
+      <div id="mf-nombre" style="font-weight:700"></div>
+      <div id="mf-monto" style="font-family:var(--fm);font-size:22px;color:var(--a3);font-weight:700"></div>
+    </div>
+    <div class="fg">
+      <label>¿De dónde sale el dinero?</label>
+      <select id="mf-fo"></select>
+    </div>
+    <button class="btn bp bfw" onclick="ejecutarPagoFijo()">Confirmar Pago</button>
+  </div>
+</div>
 
 <div class="modal-ov" id="m-edit-gasto" role="dialog" aria-modal="true"><div class="modal"><div class="fb mb"><div class="mtit">Editar gasto ✏️</div><button class="mclose" onclick="closeM('m-edit-gasto')">×</button></div><div class="fg"><label>Descripción</label><input type="text" id="eg-de"></div><div class="fr"><div class="fg"><label>Monto</label><input type="number" id="eg-mo"></div><div class="fg"><label>Categoría</label><select id="eg-ca"><option value="alimentacion">🍽️ Alimentación</option><option value="transporte">🚌 Transporte</option><option value="vivienda">🏠 Vivienda</option><option value="otro">📦 Otro</option></select></div></div><div class="fr"><div class="fg"><label>Tipo</label><select id="eg-ti"><option value="necesidad">Necesidad</option><option value="deseo">Deseo</option><option value="hormiga">Hormiga 🐜</option><option value="ahorro">Ahorro</option></select></div><div class="fg"><label>Fondo</label><select id="eg-fo"><option value="banco">🏦 Banco</option><option value="efectivo">💵 Efectivo</option></select></div></div><div class="fg"><label>Fecha</label><input type="date" id="eg-fe"></div><input type="hidden" id="eg-id"><button class="btn bp bfw" onclick="guardarEditarGasto()">Guardar cambios</button></div></div>
 
@@ -573,7 +620,24 @@
 
 <div class="modal-ov" id="m-deu" role="dialog" aria-modal="true"><div class="modal"><div class="fb mb"><div class="mtit">Nueva Deuda 💳</div><button class="mclose" onclick="closeM('m-deu')">×</button></div><div class="fg"><label>Nombre</label><input type="text" id="dn-no"></div><div class="fr"><div class="fg"><label>Saldo total</label><input type="number" id="dn-to"></div><div class="fg"><label>Cuota</label><input type="number" id="dn-cu"></div></div><div class="fr"><div class="fg"><label>Periodicidad</label><select id="dn-pe"><option value="quincenal">Quincenal</option><option value="mensual">Mensual</option></select></div><div class="fg"><label>Periodos rest.</label><input type="number" id="dn-nn"></div></div><div class="fr"><div class="fg"><label>Tasa (%)</label><input type="number" id="dn-ta" step="0.1"></div><div class="fg"><label>Tipo</label><select id="dn-ti"><option value="credito">Crédito bancario</option><option value="tarjeta">Tarjeta crédito</option><option value="otro">Otro</option></select></div></div><button class="btn bp bfw" onclick="guardarDeuda()">Registrar</button></div></div>
 
-<div class="modal-ov" id="m-pgc" role="dialog" aria-modal="true"><div class="modal"><div class="fb mb"><div class="mtit">Pagar cuota 💳</div><button class="mclose" onclick="closeM('m-pgc')">×</button></div><div style="background:var(--s2);padding:14px;margin-bottom:18px"><div id="pgc-no" style="font-weight:700"></div><div id="pgc-mo" style="font-family:var(--fm);font-size:22px;color:var(--a2);font-weight:700"></div></div><div style="display:flex;gap:12px"><button class="btn bg" onclick="confPagarCuota('efectivo')" style="flex:1">💵 Efectivo</button><button class="btn bg" onclick="confPagarCuota('banco')" style="flex:1">🏦 Banco</button></div><input type="hidden" id="pgc-id"></div></div>
+<div class="modal-ov" id="m-pgc" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="fb mb">
+      <div class="mtit">Pagar cuota 💳</div>
+      <button class="mclose" onclick="closeM('m-pgc')">×</button>
+    </div>
+    <div style="background:var(--s2);padding:14px;margin-bottom:18px">
+      <div id="pgc-no" style="font-weight:700"></div>
+      <div id="pgc-mo" style="font-family:var(--fm);font-size:22px;color:var(--a2);font-weight:700"></div>
+    </div>
+    <div class="fg">
+      <label>¿De dónde sale el dinero?</label>
+      <select id="pgc-fo"></select>
+    </div>
+    <input type="hidden" id="pgc-id">
+    <button class="btn bp bfw" onclick="confPagarCuota()">Confirmar Pago</button>
+  </div>
+</div>
 
 <div class="modal-ov" id="m-fijo" role="dialog" aria-modal="true"><div class="modal"><div class="fb mb"><div class="mtit">Nuevo Gasto Fijo 📌</div><button class="mclose" onclick="closeM('m-fijo')">×</button></div><div class="fg"><label>Nombre</label><input type="text" id="gf-no"></div><div class="fr"><div class="fg"><label>Monto</label><input type="number" id="gf-mn"></div><div class="fg"><label>Día de pago</label><input type="number" id="gf-di"></div></div><div class="fr"><div class="fg"><label>Periodicidad</label><select id="gf-pe"><option value="mensual">Mensual</option><option value="quincenal">Quincenal</option></select></div><div class="fg"><label>Tipo</label><select id="gf-ti"><option value="necesidad">Necesidad</option><option value="deseo">Deseo</option></select></div></div><div class="fr"><div class="fg"><label>Categoría</label><select id="gf-ca"><option value="vivienda">🏠 Vivienda</option><option value="servicios">💡 Servicios</option><option value="otro">📦 Otro</option></select></div><div class="fg"><label>Fondo</label><select id="gf-fo"><option value="banco">🏦 Banco</option><option value="efectivo">💵 Efectivo</option></select></div></div><div class="fg"><div class="ckrow" onclick="document.getElementById('gf-4k').checked=!document.getElementById('gf-4k').checked"><input type="checkbox" id="gf-4k" onclick="event.stopPropagation()"><label>Aplica 4×1000</label></div></div><button class="btn bp bfw" onclick="guardarFijo()">Agregar fijo</button></div></div>
 
