@@ -12,8 +12,9 @@
 // Función: Evita que el usuario seleccione cosas invisibles detrás de un modal 
 // cuando navega usando la tecla "Tab" (Tabulador).
 export function trapModalFocus(ev) {
-  // Busca si hay alguna ventana abierta en este momento
-  const open = document.querySelector('.modal-ov.open');
+  // Atrapa todos los modales abiertos y selecciona solo el último (el que está más al frente)
+  const openModals = document.querySelectorAll('.modal-ov.open');
+  const open = openModals[openModals.length - 1];
   
   // Si no hay ventanas abiertas o la tecla presionada NO es 'Tab', ignorar
   if(!open || ev.key !== 'Tab') return;
