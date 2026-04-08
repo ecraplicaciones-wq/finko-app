@@ -472,7 +472,10 @@ function renderDeudas() {
     copia.sort((a, b) => (b.tasa || 0) - (a.tasa || 0)); 
     
     const msgEl = document.getElementById('deu-coach-msg'); 
-    if(msgEl) msgEl.innerHTML = `🔥 <strong>Avalancha:</strong> Paga el mínimo en todas, y mete extra a la más cara.`; 
+    // Busca donde se define el mensaje del modo avalancha y cámbialo por esto:
+if (modo === 'avalancha') {
+  msgEl.innerHTML = `🔥 <b>Avalancha:</b> Paga el mínimo en todas y ataca la deuda con la <b>tasa de interés más alta</b>. Es la estrategia más eficiente para ahorrar dinero en intereses.`;
+}
   } 
   else { 
     // BOLA DE NIEVE: Menor saldo primero (Con desempate inteligente)
@@ -491,7 +494,7 @@ function renderDeudas() {
     const msgEl = document.getElementById('deu-coach-msg'); 
     if(msgEl) msgEl.innerHTML = `⛄ <strong>Bola de Nieve:</strong> Destruye la más pequeña primero para motivación.`; 
   }
-  
+
   const primeraVivaId = copia.find(d => (d.total - d.pagado) > 0)?.id;
   el.innerHTML = copia.map(d => {
     const pend = Math.max(0, d.total - d.pagado); const p = Math.min(d.pagado / d.total * 100, 100);
@@ -515,6 +518,7 @@ function delInversion(id){S.inversiones=S.inversiones.filter(x=>x.id!==id);save(
 
 async function guardarPago(){const de=document.getElementById('ag-de').value;const mo=+document.getElementById('ag-mo').value;const fe=document.getElementById('ag-fe').value;if(!de||!mo)return;S.pagosAgendados.push({id:Date.now(),desc:de,monto:mo,fecha:fe,repetir:document.getElementById('ag-re').value,fondo:document.getElementById('ag-fo').value,pagado:false});closeM('m-pago');save();renderAll();}
 
+// 1. RENDERIZAR PAGOS (Ahora muestra el banco real Nequi, Nu, etc.)
 function renderPagos() {
   const now = new Date();
   now.setHours(0, 0, 0, 0); 
@@ -534,10 +538,7 @@ function renderPagos() {
     dTime.setHours(0, 0, 0, 0);
     const dias = Math.ceil((dTime - now) / 86400000);
     
-    let textoDias = '';
-    let colorFecha = 'var(--t3)';
-    let colorMonto = 'var(--a2)';
-    let styleAlerta = '';
+    let textoDias = ''; let colorFecha = 'var(--t3)'; let colorMonto = 'var(--a2)'; let styleAlerta = '';
 
     if (dias < 0) {
       textoDias = `⚠️ Vencido hace ${Math.abs(dias)} día(s)`;
@@ -552,14 +553,22 @@ function renderPagos() {
     else if (p.repetir === 'quincenal') pill = '<span class="pill py" style="font-size:9px; padding:2px 6px; margin-left:6px;">Quincenal</span>';
     else pill = '<span class="pill pg" style="font-size:9px; padding:2px 6px; margin-left:6px;">Único</span>';
 
-    // MOSTRAR FONDO PLANEADO
-    let fondoPill = p.fondo === 'banco' ? '🏦 Banco' : '💵 Efectivo';
+    // 🌟 MAGIA: Buscar la cuenta real para mostrar su ícono y nombre
+    let cIcono = '🏦', cNom = 'Banco General';
+    if (p.fondo === 'efectivo') {
+      cIcono = '💵'; cNom = 'Efectivo';
+    } else if (p.fondo && p.fondo.startsWith('cuenta_')) {
+      const cId = +p.fondo.split('_')[1];
+      const c = S.cuentas.find(x => x.id === cId);
+      if (c) { cIcono = c.icono; cNom = c.nombre; }
+    }
+    let fondoPill = `${cIcono} ${he(cNom)}`;
 
     return `<div class="prow" style="display:flex; align-items:center; padding:10px; border-bottom:1px solid var(--b1); ${styleAlerta}">
       <div style="font-size:12px; color:${colorFecha}; min-width:55px; text-transform:capitalize; font-weight:700;">${fechaFormateada}</div>
       <div style="flex:1;">
         <div style="font-size:13px; font-weight:600; display:flex; align-items:center;">${he(p.desc)} ${pill}</div>
-        <div style="font-size:10px; color:var(--t3); margin-top:4px;">Planeado en: <strong>${fondoPill}</strong></div>
+        <div style="font-size:10px; color:var(--t3); margin-top:4px;">Planeado en: <strong style="color:var(--t2);">${fondoPill}</strong></div>
         <div class="tm" style="color:${dias < 0 ? 'var(--dan)' : 'var(--t2)'}; font-size:11px; margin-top:2px; font-weight:${dias < 0 ? '700' : 'normal'};">${textoDias}</div>
       </div>
       <div class="mono" style="color:${colorMonto}; font-weight:700; font-size:14px; margin-right:12px;">${f(p.monto)}</div>
@@ -581,41 +590,85 @@ function renderPagos() {
   if (typeof renderCal === 'function') renderCal();
 }
 
-// 1. ABRE EL MODAL DE CONFIRMACIÓN
+// 1. ABRIR CONFIRMACIÓN (Lee tus bancos reales y su saldo en vivo)
 function marcarPagado(id) {
   const p = S.pagosAgendados.find(x => x.id === id);
   if (!p) return;
   
-  setEl('cp-desc', `Vas a pagar <strong>${f(p.monto)}</strong> por "${p.desc}".`);
-  document.getElementById('cp-fo').value = p.fondo; // Pone por defecto el planeado
+  // MAGIA: Construir las opciones leyendo exactamente S.cuentas y S.saldos
+  const selectConfirmacion = document.getElementById('cp-fo');
+  if (selectConfirmacion) {
+    let opciones = `<option value="efectivo">💵 Efectivo (Disponible: ${f(S.saldos.efectivo)})</option>`;
+    
+    // Agregamos todas tus cuentas reales (Nequi, Nu, Bancolombia...)
+    if (S.cuentas && S.cuentas.length > 0) {
+      S.cuentas.forEach(c => {
+        opciones += `<option value="cuenta_${c.id}">${c.icono} ${he(c.nombre)} (Disponible: ${f(c.saldo)})</option>`;
+      });
+    } else {
+      // Por si acaso no hay cuentas creadas
+      opciones += `<option value="banco">🏦 Cuentas Digitales (Disponible: ${f(S.saldos.banco)})</option>`;
+    }
+    
+    selectConfirmacion.innerHTML = opciones;
+    
+    // Intentamos pre-seleccionar la cuenta que tenías planeada
+    if (p.fondo && selectConfirmacion.querySelector(`option[value="${p.fondo}"]`)) {
+      selectConfirmacion.value = p.fondo;
+    }
+  }
+  
+  // SOLUCIÓN AL <STRONG>:
+  document.getElementById('cp-desc').innerHTML = `Vas a pagar <strong style="color:var(--t1); font-size:15px;">${f(p.monto)}</strong> por "${he(p.desc)}".`;
   document.getElementById('cp-id').value = id;
   
   openM('m-conf-pago');
 }
 
-// 2. EJECUTA EL PAGO Y CREA LA REPETICIÓN
+// 2. EJECUTAR EL PAGO DIRECTO A LA CUENTA
 async function ejecutarPagoAgendado() {
   const id = +document.getElementById('cp-id').value;
   const p = S.pagosAgendados.find(x => x.id === id);
   if (!p) return;
 
-  const fondoReal = document.getElementById('cp-fo').value;
-  const disp = fondoReal === 'efectivo' ? S.saldos.efectivo : S.saldos.banco;
+  // Tomamos el ID de la cuenta que eligió (ej: "cuenta_1710000" o "efectivo")
+  const fondoSeleccionado = document.getElementById('cp-fo').value;
 
+  // Calculamos cuánto dinero hay disponible para la alerta
+  let disp = 0;
+  let nombreCuenta = 'Efectivo';
+  
+  if (fondoSeleccionado === 'efectivo') {
+    disp = S.saldos.efectivo;
+  } else if (fondoSeleccionado.startsWith('cuenta_')) {
+    const idCuenta = +fondoSeleccionado.split('_')[1];
+    const cuentaReal = S.cuentas.find(x => x.id === idCuenta);
+    if (cuentaReal) {
+      disp = cuentaReal.saldo;
+      nombreCuenta = cuentaReal.nombre;
+    }
+  } else {
+    disp = S.saldos.banco;
+    nombreCuenta = 'Banco';
+  }
+
+  // Alerta si no hay saldo
   if (disp < p.monto) {
-    const ok = await showConfirm(`⚠️ Saldo insuficiente en ${fondoReal} (${f(disp)} disponible).\n¿Pagar de todas formas?`, 'Saldo');
+    const ok = await showConfirm(`⚠️ Saldo insuficiente en ${nombreCuenta} (${f(disp)} disponible).\n¿Pagar de todas formas?`, 'Saldo');
     if (!ok) return; 
   }
 
-  // Descontar y Registrar
-  desF(fondoReal, p.monto);
+  // 1. Usa TU función nativa desF que es la que actualiza el Dashboard
+  desF(fondoSeleccionado, p.monto);
+
+  // 2. Registramos el gasto (Se inyecta fondoSeleccionado para que el Historial y el Dashboard pongan tu icono)
   S.gastos.unshift({
-    id: Date.now(), desc: `📅 Pago: ${p.desc}`, monto: p.monto, montoTotal: p.monto, cat: 'otro', tipo: 'necesidad', fondo: fondoReal, hormiga: false, cuatroXMil: false, fecha: hoy(), metaId: '', autoFijo: false
+    id: Date.now(), desc: `📅 Pago: ${p.desc}`, monto: p.monto, montoTotal: p.monto, cat: 'otro', tipo: 'necesidad', fondo: fondoSeleccionado, hormiga: false, cuatroXMil: false, fecha: hoy(), metaId: '', autoFijo: false
   });
 
-  p.pagado = true; // Lo oculta de la lista
+  p.pagado = true;
 
-  // MAGIA: Si es recurrente, crea el del mes/quincena siguiente
+  // 3. Repetición automática
   if (p.repetir === 'mensual' || p.repetir === 'quincenal') {
     const nextDate = new Date(p.fecha + 'T12:00:00');
     if (p.repetir === 'mensual') nextDate.setMonth(nextDate.getMonth() + 1);
@@ -626,20 +679,125 @@ async function ejecutarPagoAgendado() {
     const dd = String(nextDate.getDate()).padStart(2, '0');
 
     S.pagosAgendados.push({
-      id: Date.now() + Math.random(),
-      desc: p.desc,
-      monto: p.monto,
-      fecha: `${yyyy}-${mm}-${dd}`,
-      repetir: p.repetir,
-      fondo: fondoReal, // Guarda el fondo que usaste esta vez para el futuro
-      pagado: false
+      id: Date.now() + Math.random(), desc: p.desc, monto: p.monto, fecha: `${yyyy}-${mm}-${dd}`, repetir: p.repetir, fondo: p.fondo, pagado: false
     });
   }
 
-  closeM('m-conf-pago'); save(); renderAll();
+  closeM('m-conf-pago'); 
+  save(); 
+  renderAll(); // <--- Esto actualiza todo el dashboard al instante
 }
 
-function delPago(id){S.pagosAgendados=S.pagosAgendados.filter(x=>x.id!==id);save();renderPagos();renderCal();}
+// 1. ABRIR CONFIRMACIÓN (Lee tus bancos reales y su saldo en vivo)
+window.marcarPagado = function(id) {
+  const p = S.pagosAgendados.find(x => x.id === id);
+  if (!p) return;
+  
+  // MAGIA: Construir las opciones leyendo exactamente S.cuentas y S.saldos
+  const selectConfirmacion = document.getElementById('cp-fo');
+  if (selectConfirmacion) {
+    let opciones = `<option value="efectivo">💵 Efectivo (Disponible: ${f(S.saldos.efectivo)})</option>`;
+    
+    // Agregamos todas tus cuentas reales (Nequi, Nu, Bancolombia...)
+    if (S.cuentas && S.cuentas.length > 0) {
+      S.cuentas.forEach(c => {
+        opciones += `<option value="cuenta_${c.id}">${c.icono} ${he(c.nombre)} (Disponible: ${f(c.saldo)})</option>`;
+      });
+    } else {
+      opciones += `<option value="banco">🏦 Cuentas Digitales (Disponible: ${f(S.saldos.banco)})</option>`;
+    }
+    
+    selectConfirmacion.innerHTML = opciones;
+    
+    // Intentamos pre-seleccionar la cuenta que tenías planeada
+    if (p.fondo && selectConfirmacion.querySelector(`option[value="${p.fondo}"]`)) {
+      selectConfirmacion.value = p.fondo;
+    }
+  }
+  
+  // SOLUCIÓN AL <STRONG>:
+  const descEl = document.getElementById('cp-desc');
+  if (descEl) descEl.innerHTML = `Vas a pagar <strong style="color:var(--t1); font-size:15px;">${f(p.monto)}</strong> por "${he(p.desc)}".`;
+  
+  const idEl = document.getElementById('cp-id');
+  if (idEl) idEl.value = id;
+  
+  openM('m-conf-pago');
+};
+
+// 2. EJECUTAR EL PAGO DIRECTO A LA CUENTA
+window.ejecutarPagoAgendado = async function() {
+  const id = +document.getElementById('cp-id').value;
+  const p = S.pagosAgendados.find(x => x.id === id);
+  if (!p) return;
+
+  const fondoSeleccionado = document.getElementById('cp-fo').value;
+
+  // Calculamos cuánto dinero hay disponible para la alerta
+  let disp = 0;
+  let nombreCuenta = 'Efectivo';
+  
+  if (fondoSeleccionado === 'efectivo') {
+    disp = S.saldos.efectivo;
+  } else if (fondoSeleccionado.startsWith('cuenta_')) {
+    const idCuenta = +fondoSeleccionado.split('_')[1];
+    const cuentaReal = S.cuentas.find(x => x.id === idCuenta);
+    if (cuentaReal) {
+      disp = cuentaReal.saldo;
+      nombreCuenta = cuentaReal.nombre;
+    }
+  } else {
+    disp = S.saldos.banco;
+    nombreCuenta = 'Banco';
+  }
+
+  // Alerta si no hay saldo
+  if (disp < p.monto) {
+    const ok = await showConfirm(`⚠️ Saldo insuficiente en ${nombreCuenta} (${f(disp)} disponible).\n¿Pagar de todas formas?`, 'Saldo');
+    if (!ok) return; 
+  }
+
+  desF(fondoSeleccionado, p.monto);
+
+  S.gastos.unshift({
+    id: Date.now(), desc: `📅 Pago: ${p.desc}`, monto: p.monto, montoTotal: p.monto, cat: 'otro', tipo: 'necesidad', fondo: fondoSeleccionado, hormiga: false, cuatroXMil: false, fecha: hoy(), metaId: '', autoFijo: false
+  });
+
+  p.pagado = true;
+
+  if (p.repetir === 'mensual' || p.repetir === 'quincenal') {
+    const nextDate = new Date(p.fecha + 'T12:00:00');
+    if (p.repetir === 'mensual') nextDate.setMonth(nextDate.getMonth() + 1);
+    if (p.repetir === 'quincenal') nextDate.setDate(nextDate.getDate() + 15);
+
+    const yyyy = nextDate.getFullYear();
+    const mm = String(nextDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(nextDate.getDate()).padStart(2, '0');
+
+    S.pagosAgendados.push({
+      id: Date.now() + Math.random(), desc: p.desc, monto: p.monto, fecha: `${yyyy}-${mm}-${dd}`, repetir: p.repetir, fondo: p.fondo, pagado: false
+    });
+  }
+
+  closeM('m-conf-pago'); 
+  save(); 
+  renderAll(); 
+};
+
+// 2. ELIMINAR CON ADVERTENCIA MODERNA
+async function delPago(id){
+  const p = S.pagosAgendados.find(x => x.id === id);
+  if(!p) return;
+  
+  // 🌟 Usamos tu alerta inteligente "showConfirm" nativa de Finko Pro
+  const seguro = await showConfirm(`⚠️ ¿Estás completamente seguro de eliminar el pago "${he(p.desc)}"?`, 'Eliminar Pago');
+  if(!seguro) return;
+  
+  S.pagosAgendados = S.pagosAgendados.filter(x => x.id !== id);
+  save(); 
+  renderPagos(); 
+  if(typeof renderCal === 'function') renderCal();
+}
 
 // --- SISTEMA DEL CALENDARIO DINÁMICO (BLINDADO) ---
 var calDate = null; 
