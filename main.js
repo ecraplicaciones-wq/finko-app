@@ -515,10 +515,6 @@ function renderDeudas() {
   const diaActual = new Date().getDate();
   let cPer = (diaActual <= 15) ? (sq + sm) : sq;
 
-  if(cPer > S.ingreso * 0.3 && S.ingreso > 0) {
-    al.push(`<div class="al ald"><span class="al-icon">💳</span><div>Las cuotas de tus deudas (${f(cPer)}) superan el 30% de tu ingreso. Estás en zona de riesgo financiero.</div></div>`);
-  }
-
   const totD = S.deudas.reduce((s, d) => s + Math.max(0, d.total - d.pagado), 0);
   const pct = S.ingreso > 0 ? Math.round(cPer / S.ingreso * 100) : 0;
   setEl('de-tot', f(totD)); setEl('de-cq', f(sq)); setEl('de-cm', f(sm)); setEl('de-cp', f(cPer));
