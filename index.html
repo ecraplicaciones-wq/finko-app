@@ -485,9 +485,17 @@
   </section>
 
   <section class="sec" id="sec-agen">
-    <div class="sh">
-      <div class="sh-left"><div class="sh-icon yellow">📅</div><div><div class="st">Agenda de Pagos 📅</div><div class="ss">Visualiza pagos futuros y prepárate con anticipación</div></div></div>
-      <button class="btn bp bsm" onclick="openM('m-pago')">+ Agendar pago</button>
+    <div class="sh" style="align-items: center; margin-bottom: 24px;">
+      <div class="sh-left" style="gap: 16px;">
+        <div class="sh-icon" style="background: linear-gradient(135deg, rgba(255,214,10,.2), rgba(255,107,53,.2)); border: 1px solid rgba(255,214,10,.4); width: 56px; height: 56px; font-size: 28px; box-shadow: 0 4px 12px rgba(255,214,10,.15); border-radius: 16px;">📅</div>
+        <div>
+          <div class="st" style="font-size: 24px;">Agenda de Pagos</div>
+          <div class="ss" style="font-size: 13px;">Controla tus gastos programados y asegura tu liquidez</div>
+        </div>
+      </div>
+      <button class="btn bp" onclick="openM('m-pago')" style="padding: 12px 20px; font-size: 14px; box-shadow: 0 4px 16px rgba(0,220,130,.3); border-radius: 8px; font-weight: 700;">
+        <span style="font-size: 16px; margin-right: 4px;">+</span> Agendar Nuevo Pago
+      </button>
     </div>
     <div class="g2 mb" style="align-items:start">
       <div class="card">
