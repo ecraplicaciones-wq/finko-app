@@ -612,15 +612,23 @@ function renderPagos() {
     dTime.setHours(0, 0, 0, 0);
     const dias = Math.ceil((dTime - now) / 86400000);
     
-    let textoDias = ''; let colorFecha = 'var(--t3)'; let colorMonto = 'var(--a2)'; let styleAlerta = '';
+    let textoDias = ''; let colorFecha = 'var(--t3)'; let colorMonto = 'var(--a2)'; 
+    // Por defecto, un borde muy sutil
+    let styleAlerta = 'border-left:4px solid transparent;'; 
 
     if (dias < 0) {
       textoDias = `⚠️ Vencido hace ${Math.abs(dias)} día(s)`;
       colorFecha = 'var(--dan)'; colorMonto = 'var(--dan)';
       styleAlerta = 'background:rgba(255,68,68,0.05); border-left:4px solid var(--dan);'; 
-    } else if (dias === 0) { textoDias = 'Hoy'; colorFecha = 'var(--a3)';
-    } else if (dias === 1) { textoDias = 'Mañana'; colorFecha = 'var(--a3)';
-    } else { textoDias = `En ${dias} días`; }
+    } else if (dias === 0) { 
+      textoDias = 'Hoy'; colorFecha = 'var(--a1)';
+      // NUEVO: Destacar el día de HOY con borde verde y fondo sutil
+      styleAlerta = 'background:rgba(0,220,130,0.05); border-left:4px solid var(--a1);';
+    } else if (dias === 1) { 
+      textoDias = 'Mañana'; colorFecha = 'var(--a3)';
+    } else { 
+      textoDias = `En ${dias} días`; 
+    }
 
     let pill = '';
     if (p.repetir === 'mensual') pill = '<span class="pill pb" style="font-size:9px; padding:2px 6px; margin-left:6px;">Mensual</span>';
@@ -638,10 +646,10 @@ function renderPagos() {
     let fondoPill = `${cIcono} ${he(cNom)}`;
 
     return `<div class="prow" style="display:flex; align-items:center; padding:10px; border-bottom:1px solid var(--b1); ${styleAlerta}">
-      <div style="font-size:12px; color:${colorFecha}; min-width:55px; text-transform:capitalize; font-weight:700;">${fechaFormateada}</div>
+      <div style="font-size:12px; color:${colorFecha}; min-width:65px; text-align:center; text-transform:capitalize; font-weight:700;">${fechaFormateada}</div>
       <div style="flex:1;">
         <div style="font-size:13px; font-weight:600; display:flex; align-items:center;">${he(p.desc)} ${pill}</div>
-        <div style="font-size:10px; color:var(--t3); margin-top:4px;">Planeado en: <strong style="color:var(--t2);">${fondoPill}</strong></div>
+        <div style="font-size:10px; color:var(--t3); margin-top:4px;">Se descontará de: <strong style="color:var(--t2);">${fondoPill}</strong></div>
         <div class="tm" style="color:${dias < 0 ? 'var(--dan)' : 'var(--t2)'}; font-size:11px; margin-top:2px; font-weight:${dias < 0 ? '700' : 'normal'};">${textoDias}</div>
       </div>
       <div class="mono" style="color:${colorMonto}; font-weight:700; font-size:14px; margin-right:12px;">${f(p.monto)}</div>
@@ -651,7 +659,7 @@ function renderPagos() {
 
   let htmlLista = '';
   if (up.length > 0) {
-    htmlLista += `<div style="display:flex; justify-content:space-between; align-items:center; background:var(--s2); padding:12px; border-radius:8px; margin-bottom:10px; border:1px solid var(--b2);"><div style="font-size:12px; color:var(--t2); font-weight:600;">💰 Total a cubrir pendientes:</div><div style="font-size:18px; color:var(--a1); font-family:var(--fm); font-weight:700;">${f(totalLiquidez)}</div></div>`;
+    htmlLista += `<div style="display:flex; justify-content:space-between; align-items:center; background:var(--s2); padding:12px; border-radius:8px; margin-bottom:10px; border:1px solid var(--b2);"><div style="font-size:12px; color:var(--t2); font-weight:600;">💰 Total pendiente por pagar:</div><div style="font-size:18px; color:var(--a1); font-family:var(--fm); font-weight:700;">${f(totalLiquidez)}</div></div>`;
     htmlLista += up.map(p => row(p, true)).join('');
   } else {
     htmlLista = '<div class="emp" style="padding:20px; text-align:center;">Sin pagos agendados pendientes</div>';
@@ -818,10 +826,16 @@ function renderCal() {
     const isToday = (isCurrentMonth && day === todayDate);
     const ev = currentDaysEvents[day]; 
 
-    let style = 'padding:6px 0; border-radius:6px; text-align:center; font-size:13px; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:42px; cursor:pointer; transition:background 0.2s;';
-    
-    if (isToday) { style += 'background:var(--s2); font-weight:700; border:1px solid var(--a1); color:var(--a1);'; } 
-    else { style += 'color:var(--t2); background:rgba(255,255,255,0.02); border:1px solid transparent;'; }
+    let baseBg = isToday ? 'var(--s2)' : 'rgba(255,255,255,0.02)';
+    let style = `padding:6px 0; border-radius:8px; text-align:center; font-size:13px; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:48px; cursor:pointer; transition:all 0.2s; background:${baseBg}; border:2px solid transparent;`;
+
+    // Círculo transparente con borde y sombra para el día de HOY
+    let daySpan = isToday
+      ? `<span style="background:rgba(0,0,0,0); border: 2px solid var(--a1); color:var(--a1); width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; font-weight:800; box-shadow: 0 3px 8px rgba(0,220,130,.5);">${day}</span>`
+      : `<span>${day}</span>`;
+
+    if (isToday) { style += ' color:var(--a1);'; } 
+    else { style += ' color:var(--t2);'; }
 
     let dots = '';
     if (ev) {
@@ -831,23 +845,46 @@ function renderCal() {
       dots += `</div>`;
     } else { dots = `<div style="height:5px; margin-top:4px;"></div>`; }
 
-    html += `<div style="${style}" onclick="showDayDetails(${day})" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background='${isToday ? 'var(--s2)' : 'rgba(255,255,255,0.02)'}'"><span>${day}</span>${dots}</div>`;
+    // Evitamos que el hover (gris) sobreescriba el color verde de selección
+    html += `<div class="cal-day-box" style="${style}" onclick="showDayDetails(${day}, this)" onmouseover="if(!this.classList.contains('selected-day')) this.style.background='var(--s3)'" onmouseout="if(!this.classList.contains('selected-day')) this.style.background='${baseBg}'">${daySpan}${dots}</div>`;
   }
 
   el.innerHTML = html;
   el.style.display = 'grid'; el.style.gridTemplateColumns = 'repeat(7, 1fr)'; el.style.gap = '6px';
 }
-
-function showDayDetails(day) {
+  
+  function showDayDetails(day, element = null) {
   const el = document.getElementById('cal-details');
   if (!el) return;
-  const ev = currentDaysEvents[day];
-  
-  if (!ev || (ev.agendados.length === 0 && ev.fijos.length === 0)) {
-    el.innerHTML = `<div style="color:var(--t3); font-size:12px; text-align:center;">No hay compromisos para el día ${day}.</div>`;
-    el.style.display = 'block'; return;
+
+  // 1. Lógica visual de selección (la burbuja verde)
+  if (element) {
+    document.querySelectorAll('.cal-day-box').forEach(box => {
+      box.classList.remove('selected-day');
+      box.style.border = '2px solid transparent';
+      // Restaurar el fondo original
+      box.style.background = box.querySelector('span').style.background.includes('var(--a1)') ? 'var(--s2)' : 'rgba(255,255,255,0.02)';
+    });
+    element.classList.add('selected-day');
+    element.style.border = '2px solid transparent';
+    element.style.background = 'rgba(0,220,130,.15)';
+    element.style.borderRadius = '16px';
   }
 
+  // 2. Revisamos si hay eventos en ese día
+  const ev = currentDaysEvents[day];
+  
+  // Si NO hay eventos, mostramos este mensaje amigable
+  if (!ev || (ev.agendados.length === 0 && ev.fijos.length === 0)) {
+    el.innerHTML = `<div style="padding:16px; text-align:center; color:var(--t3); font-size:13px; font-weight:500; background:rgba(255,255,255,0.02); border-radius:8px; border:1px dashed var(--b2); display:flex; flex-direction:column; align-items:center; gap:8px;">
+      <span style="font-size:20px;">☕</span>
+      <span>No hay pagos programados para el día ${day}. ¡Un respiro para tu bolsillo!</span>
+    </div>`;
+    el.style.display = 'block'; 
+    return;
+  }
+
+  // 3. Si SÍ hay eventos, construimos la lista
   let html = `<div style="font-weight:700; font-size:14px; margin-bottom:10px; color:var(--t1);">📅 Compromisos del día ${day}</div>`;
   
   if (ev.agendados.length > 0) {
@@ -871,7 +908,8 @@ function showDayDetails(day) {
     });
   }
 
-  el.innerHTML = html; el.style.display = 'block';
+  el.innerHTML = html; 
+  el.style.display = 'block';
 }
 
 const BANCOS_CO = [
