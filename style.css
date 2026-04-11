@@ -314,6 +314,7 @@ td { padding: 9px 10px; border-bottom: 1px solid rgba(28,42,30,.4); font-size: 1
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: rgba(22,32,25,.6); }
 .ac { font-family: var(--fm); text-align: right; }
+.t-w { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; }
 
 /* Barras del Presupuesto Quincenal */
 .dr { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
@@ -351,7 +352,7 @@ tr:hover td { background: rgba(22,32,25,.6); }
 /* Tarjetas base para items pequeños (Deudas, Inversiones, Historial) */
 .gc { background: var(--s2); border: 1px solid var(--b1); border-radius: var(--r2); padding: 16px; margin-bottom: 12px; transition: all .2s; }
 .gc:hover { border-color: var(--b2); transform: translateY(-1px); }
-.gn { font-weight: 800; font-size: 14px; margin-bottom: 2px; }
+.gn { font-weight: 800; font-size: 18px; margin-bottom: 2px; text-transform: capitalize; }
 .gm { font-size: 11px; color: var(--t3); margin-bottom: 10px; }
 .ga { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 6px; flex-wrap: wrap; gap: 5px; }
 
@@ -710,3 +711,56 @@ body.light-theme .insight-card { background: var(--s2); }
   line-height: 1.1;
   width: 70%;
 }
+
+/* Animación de hover para las tarjetas (Deudas, Historial, etc) */
+.gc {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.gc:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+@keyframes deudaEntrada {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.deuda-card-animada {
+  animation: deudaEntrada 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ─── CUSTOM FUND SELECT ─── */
+.fund-select { position: relative; }
+.fund-sel-trigger {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; background: var(--s2); border: 1.5px solid var(--b2);
+  border-radius: 10px; cursor: pointer; transition: all .2s; user-select: none;
+}
+.fund-sel-trigger:hover { border-color: var(--a1); background: var(--s1); }
+.fund-sel-trigger.open { border-color: var(--a1); background: var(--s1); }
+.fund-sel-icon { font-size: 18px; flex-shrink: 0; }
+.fund-sel-info { flex: 1; min-width: 0; }
+.fund-sel-name { font-size: 13px; font-weight: 600; color: var(--t1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fund-sel-bal { font-size: 11px; color: var(--t3); margin-top: 1px; font-family: var(--fm); }
+.fund-sel-arrow { color: var(--t3); font-size: 11px; transition: transform .2s; flex-shrink: 0; }
+.fund-sel-trigger.open .fund-sel-arrow { transform: rotate(180deg); }
+.fund-sel-opts {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 200;
+  background: var(--s1); border: 1px solid var(--b2); border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.2); overflow: hidden;
+  max-height: 0; opacity: 0; pointer-events: none;
+  transition: max-height .25s ease, opacity .2s ease;
+}
+.fund-sel-opts.open { max-height: 280px; opacity: 1; pointer-events: all; overflow-y: auto; }
+.fund-sel-opt {
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+  cursor: pointer; transition: background .15s; border-bottom: 1px solid var(--b1);
+}
+.fund-sel-opt:last-child { border-bottom: none; }
+.fund-sel-opt:hover { background: var(--s2); }
+.fund-sel-opt.fso-sel { background: rgba(0,220,130,.08); }
+.fund-sel-opt-icon { font-size: 18px; flex-shrink: 0; }
+.fund-sel-opt-info { flex: 1; min-width: 0; }
+.fund-sel-opt-name { font-size: 13px; font-weight: 600; color: var(--t1); }
+.fund-sel-opt-bal { font-size: 11px; color: var(--t3); font-family: var(--fm); margin-top: 1px; }
+.fund-sel-check { color: var(--a1); font-size: 14px; flex-shrink: 0; font-weight: 700; }
