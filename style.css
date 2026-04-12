@@ -172,6 +172,9 @@ body.sb-expanded { padding-left: 220px; }
 .sb-theme-btn { width: 100%; }
 #sidebar:not(.expanded) .sb-theme-btn { width: 44px; height: 44px; padding: 0; justify-content: center; }
 #sidebar:not(.expanded) .sb-theme-btn .nb-txt { display: none; }
+/* Botón de tema solo en móvil — oculto en desktop */
+.nb-theme-mobile { display: none; }
+
 .sb-period { display: none; align-items: center; gap: 8px; padding: 4px 10px; color: var(--t3); font-size: 10px; width: 100%; font-family: var(--fm); }
 #sidebar.expanded .sb-period { display: flex; }
 
@@ -384,7 +387,50 @@ tr:hover td { background: rgba(22,32,25,.6); }
 .gfc { background: var(--s2); border: 1px solid var(--b1); border-radius: var(--r2); padding: 13px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; transition: all .2s; }
 .gfc:hover { border-color: var(--b2); }
 
-.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 8px; }
+/* Tarjeta moderna de Historial */
+.hist-card {
+  background: var(--s1);
+  border: 1px solid var(--b1);
+  border-radius: 16px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.hist-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+
+/* Tarjeta moderna de Inversión */
+
+.inv-card {
+  background: var(--s1);
+  border: 1px solid var(--b1);
+  border-radius: 16px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.inv-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+
+/* Tarjeta moderna de Gasto Fijo */
+
+.fijo-card {
+  background: var(--s1);
+  border: 1px solid var(--b1);
+  border-radius: 16px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.fijo-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+.fijo-card.pagado { opacity: .65; }
+.fijo-card.pagado .fijo-nombre { text-decoration: line-through; color: var(--t3); }
+
+/* ─── CALENDARIO ─── */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  margin-top: 8px;
+}
 .cal-day { background: var(--s2); border: 1px solid var(--b1); border-radius: var(--r1); padding: 6px; min-height: 52px; font-size: 10px; }
 .cal-day.hev { border-color: rgba(255,214,10,.35); }
 .cal-day.tod { border-color: var(--a1); background: rgba(0,220,130,.06); }
@@ -393,10 +439,58 @@ tr:hover td { background: rgba(22,32,25,.6); }
 .cev-p { background: rgba(255,214,10,.15); color: var(--a2); }
 .cev-f { background: rgba(59,158,255,.15); color: var(--a4); }
 
-.cal-hdr { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 4px; }
+.cal-hdr { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 4px; }
 .cal-hdr div { font-size: 9px; color: var(--t3); text-align: center; padding: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+
+/* Día del calendario — botón interactivo */
+.cal-day-box {
+  padding: 6px 0;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+  background: rgba(255,255,255,0.02);
+  border: 2px solid transparent;
+  color: var(--t2);
+  user-select: none;
+}
+.cal-day-box:hover { background: var(--s3); }
+.cal-day-box:focus-visible { outline: 2px solid var(--a1); outline-offset: 2px; }
+.cal-day-box.today { background: var(--s2); color: var(--a1); }
+.cal-day-box.selected-day { background: rgba(0,220,130,.15); border-radius: 16px; }
+
+/* Panel de detalle del día — scroll si hay muchos eventos */
+#cal-details {
+  max-height: 280px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+/* Tarjetas de pago agendado */
+.pago-card {
+  background: var(--s1);
+  border: 1px solid var(--b1);
+  border-radius: 16px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.pago-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+.pago-card:focus-within { box-shadow: 0 0 0 2px var(--a1); }
+
 .prow { background: var(--s2); border: 1px solid var(--b1); border-radius: var(--r2); padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; transition: all .2s; }
 .prow:hover { border-color: var(--b2); }
+
+/* Responsive calendario en móvil */
+@media (max-width: 480px) {
+  .cal-day-box { min-height: 44px; font-size: 12px; border-radius: 6px; }
+}
 
 
 /* ─── 15. CALCULADORAS Y ESTADÍSTICAS ──────────────────────────── */
@@ -477,6 +571,9 @@ tr:hover td { background: rgba(22,32,25,.6); }
   #sidebar.expanded { width: 100%; height: 56px; }
   #sidebar nav { flex-direction: row; padding: 0 4px; overflow-x: auto; overflow-y: hidden; align-items: stretch; gap: 0; }
 
+  /* Botón de tema — solo visible en móvil dentro del nav */
+  .nb-theme-mobile { display: flex; }
+
   /* Botones de la barra inferior — tamaño fijo y centrado perfecto */
   #sidebar nav .nb {
     width: 52px;
@@ -491,21 +588,40 @@ tr:hover td { background: rgba(22,32,25,.6); }
     border: none;
     border-bottom: 3px solid transparent;
     border-left: none;
+    background: none;
   }
+
+  /* Cancelar el hover de desktop en móvil */
+  #sidebar nav .nb:hover {
+    background: none;
+    border-color: transparent;
+  }
+
+  /* El hover se aplica solo al ícono, no al botón entero */
   #sidebar nav .nb .ni {
     font-size: 20px;
     line-height: 1;
-    width: auto;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
+    border-radius: 10px;
+    transition: background .15s;
   }
-  /* Estado activo en móvil: línea verde arriba en lugar de izquierda */
+  #sidebar nav .nb:hover .ni {
+    background: var(--s2);
+  }
+
+  /* Estado activo en móvil: línea verde abajo + fondo en el ícono */
   #sidebar nav .nb.active {
     border-bottom: 3px solid var(--a1);
     border-left: none;
     color: var(--a1);
-    background: var(--s2);
+    background: none;
+  }
+  #sidebar nav .nb.active .ni {
+    background: rgba(0,220,130,.1);
   }
 
   /* Escondemos elementos que estorban en el celular */
