@@ -17,11 +17,13 @@ export function applyTheme(theme) {
   document.body.classList.toggle('light-theme', isLight);
   
   // Actualizamos el ícono del botón en el menú lateral
-  const btn = document.getElementById('btn-theme');
-  if (btn) {
-    const ni = btn.querySelector('.ni');
-    if (ni) ni.textContent = isLight ? '🌙' : '☀️';
-  }
+  ['btn-theme', 'btn-theme-mobile'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) {
+      const ni = btn.querySelector('.ni');
+      if (ni) ni.textContent = isLight ? '🌙' : '☀️';
+    }
+  });
   
   // Guardamos la preferencia en la memoria del navegador para la próxima vez que abra la app
   localStorage.setItem('fco_theme', theme);
