@@ -17,7 +17,13 @@ const NAVS = ['dash','quin','gast','fijo','objetivos','inve','deu','agen','stat'
 function initApp() {
   loadData();
   if(localStorage.getItem('sb_expanded') === 'true') { document.getElementById('sidebar')?.classList.add('expanded'); document.body.classList.add('sb-expanded'); }
-  if(localStorage.getItem('fco_theme') === 'light'){ document.body.classList.add('light-theme'); const b = document.getElementById('btn-theme'); if(b){ const ni = b.querySelector('.ni'); if(ni) ni.textContent='🌙'; } }
+  if(localStorage.getItem('fco_theme') === 'light'){
+    document.body.classList.add('light-theme');
+    ['btn-theme', 'btn-theme-mobile'].forEach(id => {
+      const b = document.getElementById(id);
+      if(b){ const ni = b.querySelector('.ni'); if(ni) ni.textContent='🌙'; }
+    });
+  }
   
   updateBadge(); populateSelectObjetivos(); renderAll(); calcScore();
   
@@ -420,26 +426,77 @@ function renderFijos(){
   const mes = mesStr();
   const tot = S.gastosFijos.reduce((s,g) => s + (Number(g.monto) || 0), 0);
   const pag = S.gastosFijos.filter(g => g.pagadoEn.includes(mes));
-  setEl('fi-tot', f(tot)); setEl('fi-pag', f(pag.reduce((s,g)=>s+(Number(g.monto)||0),0))); setEl('fi-np', pag.length); setEl('fi-nt', S.gastosFijos.length);
+  setEl('fi-tot', f(tot));
+  setEl('fi-pag', f(pag.reduce((s,g)=>s+(Number(g.monto)||0),0)));
+  setEl('fi-np', pag.length);
+  setEl('fi-nt', S.gastosFijos.length);
+
   const el = document.getElementById('fi-lst');
-  if (!S.gastosFijos.length) { el.innerHTML = '<div class="emp"><span class="emp-icon">◉</span>Sin gastos fijos.</div>'; return; }
-  
+  if (!S.gastosFijos.length) {
+    el.innerHTML = `
+      <div style="text-align:center; padding:40px 20px; background:var(--s1); border-radius:16px; border:1px dashed rgba(0,220,130,.3);">
+        <div style="font-size:48px; margin-bottom:14px;">📌</div>
+        <div style="font-weight:800; font-size:17px; color:var(--t1); margin-bottom:8px;">Sin gastos fijos</div>
+        <div style="color:var(--t3); font-size:13px; max-width:260px; margin:0 auto; line-height:1.6;">Agrega tus gastos recurrentes para tenerlos siempre bajo control.</div>
+      </div>`;
+    return;
+  }
+
   el.innerHTML = S.gastosFijos.map(g => {
-    const paid = g.pagadoEn.includes(mes); const mMostrar = g.cuatroXMil ? (g.montoTotal || Math.round(g.monto*1.004)) : g.monto;
-    const tiBadge = (g.tipo || 'necesidad') === 'deseo' ? '<span class="pill py">Deseo</span>' : '<span class="pill pb">Necesidad</span>';
-    const perBadge = g.periodicidad === 'quincenal' ? '<span class="pill pm">Quincenal</span>' : ''; 
-    return `<div class="gfc" style="${paid ? 'opacity:.6' : ''}">
-      <div style="font-size:20px">${CATS[g.cat] ? CATS[g.cat].split(' ')[0] : '📦'}</div>
-      <div style="flex:1;margin-left:4px">
-        <div style="font-weight:700;font-size:13px;${paid?'text-decoration:line-through':''}">${he(g.nombre)} ${tiBadge} ${perBadge}</div>
-        <div class="tm" style="margin-top:2px">Día ${g.dia} · ${g.fondo==='efectivo'?'💵 Efectivo':'🏦 Banco'}</div>
+    const paid = g.pagadoEn.includes(mes);
+    const mMostrar = g.cuatroXMil ? (g.montoTotal || Math.round(g.monto*1.004)) : g.monto;
+    const icono = CATS[g.cat] ? CATS[g.cat].split(' ')[0] : '📦';
+    const tiBadge = (g.tipo || 'necesidad') === 'deseo'
+      ? '<span class="pill py">Deseo</span>'
+      : '<span class="pill pb">Necesidad</span>';
+    const perBadge = g.periodicidad === 'quincenal'
+      ? '<span class="pill pm">↻ Quincenal</span>'
+      : '<span class="pill pg">↻ Mensual</span>';
+    const fondoLabel = g.fondo === 'efectivo' ? '💵 Efectivo' : '🏦 Banco';
+    const gmfBadge = g.cuatroXMil ? '<span class="pill pt">+4×1000</span>' : '';
+
+    return `
+    <article class="fijo-card${paid ? ' pagado' : ''}" aria-label="Gasto fijo: ${he(g.nombre)}">
+
+      <!-- CABECERA -->
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; padding:16px 20px 14px; border-bottom:1px solid var(--b1); gap:12px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
+          <div style="width:44px; height:44px; border-radius:12px; background:var(--s2); border:1px solid var(--b2); display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;" aria-hidden="true">${icono}</div>
+          <div style="min-width:0;">
+            <div class="fijo-nombre" style="font-weight:800; font-size:15px; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${he(g.nombre)}">${he(g.nombre)}</div>
+            <div style="margin-top:5px; display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+              ${tiBadge} ${perBadge} ${gmfBadge}
+            </div>
+          </div>
+        </div>
+        <div style="text-align:right; flex-shrink:0;">
+          <div style="font-family:var(--fm); font-size:26px; font-weight:800; color:${paid ? 'var(--t3)' : 'var(--a4)'}; letter-spacing:-1px; line-height:1;">${f(mMostrar)}</div>
+          <div style="font-size:10px; color:var(--t3); margin-top:4px;">📅 Día ${g.dia} · ${fondoLabel}</div>
+        </div>
       </div>
-      <div style="font-family:var(--fm);font-weight:700;font-size:14px;color:var(--a4)">${f(mMostrar)}</div>
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-        ${paid ? `<span class="pill pg">✓ Pagado</span> <button class="btn bg bsm" onclick="desmFijo(${g.id})">Desmarcar</button>` : `<button class="btn bp bsm" onclick="abrirModalFijo(${g.id})">Marcar pagado</button>`}
-        <button class="btn bd bsm" onclick="delFijo(${g.id})">×</button>
+
+      <!-- PIE -->
+      <div style="padding:12px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        ${paid
+          ? `<div style="display:flex; align-items:center; gap:6px;">
+               <div style="width:8px; height:8px; border-radius:50%; background:var(--a1);" aria-hidden="true"></div>
+               <span style="font-size:12px; font-weight:700; color:var(--a1);">✓ Pagado este mes</span>
+             </div>`
+          : `<div style="display:flex; align-items:center; gap:6px;">
+               <div style="width:8px; height:8px; border-radius:50%; background:var(--a2);" aria-hidden="true"></div>
+               <span style="font-size:12px; font-weight:600; color:var(--a2);">Pendiente de pago</span>
+             </div>`
+        }
+        <div style="display:flex; gap:8px; margin-left:auto;">
+          ${paid
+            ? `<button class="btn bg bsm" onclick="desmFijo(${g.id})" aria-label="Desmarcar pago de ${he(g.nombre)}">↺ Desmarcar</button>`
+            : `<button class="btn bp bsm" onclick="abrirModalFijo(${g.id})" aria-label="Marcar como pagado ${he(g.nombre)}">✓ Pagar</button>`
+          }
+          <button class="btn-eliminar-deu" onclick="delFijo(${g.id})" style="padding:6px 12px;" aria-label="Eliminar ${he(g.nombre)}">🗑️</button>
+        </div>
       </div>
-    </div>`;
+
+    </article>`;
   }).join('');
 }
 
@@ -1290,7 +1347,78 @@ async function delDeu(id){const ok=await showConfirm('¿Eliminar deuda?','Elimin
 
 // ─── 8. INVERSIONES, AGENDA, CUENTAS ───
 async function guardarInversion(){const no=document.getElementById('inv-no').value.trim();const pl=document.getElementById('inv-pl').value.trim();const cap=+document.getElementById('inv-cap').value||0;const ta=+document.getElementById('inv-ta').value||0;if(!no||!pl||!cap)return;const fo=document.getElementById('inv-fo').value;if(fo)desF(fo,cap);S.inversiones.push({id:Date.now(),nombre:no,plataforma:pl,capital:cap,rendimiento:0,tasa:ta});closeM('m-inversion');save();renderAll();}
-function renderInversiones(){const el=document.getElementById('inv-lst');if(!el)return;const tc=S.inversiones.reduce((s,i)=>s+i.capital,0),tr=S.inversiones.reduce((s,i)=>s+i.rendimiento,0);setEl('inv-tot-cap',f(tc));setEl('inv-tot-rend',f(tr));setEl('inv-tot-gral',f(tc+tr));if(!S.inversiones.length){el.innerHTML='<div class="emp">Sin inversiones.</div>';return;}el.innerHTML=S.inversiones.map(i=>`<article class="gc"><div class="fb"><div><div class="gn">📊 ${he(i.nombre)}</div><div class="gm">${he(i.plataforma)}</div></div><div style="display:flex;gap:6px"><button class="btn bg bsm" onclick="openRendimiento(${i.id},'${he(i.nombre)}')">Actualizar</button><button class="btn bd bsm" onclick="delInversion(${i.id})">×</button></div></div><div style="display:flex;justify-content:space-between;margin-top:12px;background:var(--s3);padding:10px;border-radius:var(--r1)"><div><div class="tm">Capital</div><div class="mono" style="font-weight:600">${f(i.capital)}</div></div><div><div class="tm">Ganancia</div><div class="mono" style="font-weight:600;color:var(--a1)">+${f(i.rendimiento)}</div></div></div></article>`).join('');}
+function renderInversiones() {
+  const el = document.getElementById('inv-lst');
+  if (!el) return;
+
+  const tc = S.inversiones.reduce((s,i) => s + i.capital, 0);
+  const tr = S.inversiones.reduce((s,i) => s + i.rendimiento, 0);
+  setEl('inv-tot-cap', f(tc));
+  setEl('inv-tot-rend', f(tr));
+  setEl('inv-tot-gral', f(tc + tr));
+
+  if (!S.inversiones.length) {
+    el.innerHTML = `
+      <div style="text-align:center; padding:40px 20px; background:var(--s1); border-radius:16px; border:1px dashed rgba(59,158,255,.3);">
+        <div style="font-size:48px; margin-bottom:14px;">📈</div>
+        <div style="font-weight:800; font-size:17px; color:var(--t1); margin-bottom:8px;">Sin inversiones registradas</div>
+        <div style="color:var(--t3); font-size:13px; max-width:260px; margin:0 auto; line-height:1.6;">Registra tus CDTs, FICs o acciones para ver cómo crece tu dinero.</div>
+      </div>`;
+    return;
+  }
+
+  el.innerHTML = S.inversiones.map(i => {
+    const valorTotal = i.capital + i.rendimiento;
+    const rendPct = i.capital > 0 ? ((i.rendimiento / i.capital) * 100).toFixed(1) : 0;
+    const colorRend = i.rendimiento >= 0 ? 'var(--a1)' : 'var(--dan)';
+    const signo = i.rendimiento >= 0 ? '+' : '';
+    const tasaBadge = i.tasa > 0
+      ? `<span class="pill pg" style="font-size:9px;">${i.tasa}% E.A.</span>`
+      : '';
+
+    return `
+    <article class="inv-card" aria-label="Inversión: ${he(i.nombre)}">
+
+      <!-- CABECERA -->
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; padding:16px 20px 14px; border-bottom:1px solid var(--b1); gap:12px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
+          <div style="width:44px; height:44px; border-radius:12px; background:rgba(59,158,255,.1); border:1px solid rgba(59,158,255,.2); display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;" aria-hidden="true">📊</div>
+          <div style="min-width:0;">
+            <div style="font-weight:800; font-size:15px; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${he(i.nombre)}">${he(i.nombre)}</div>
+            <div style="margin-top:5px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <span style="font-size:11px; color:var(--t3);">📍 ${he(i.plataforma)}</span>
+              ${tasaBadge}
+            </div>
+          </div>
+        </div>
+        <div style="text-align:right; flex-shrink:0;">
+          <div style="font-size:10px; font-weight:700; color:var(--t3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Valor total</div>
+          <div style="font-family:var(--fm); font-size:26px; font-weight:800; color:var(--t1); letter-spacing:-1px; line-height:1;">${f(valorTotal)}</div>
+        </div>
+      </div>
+
+      <!-- CUERPO: Capital + Rendimiento -->
+      <div style="padding:14px 20px; border-bottom:1px solid var(--b1); display:flex; gap:12px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:120px; background:var(--s2); border:1px solid var(--b1); border-radius:10px; padding:12px;">
+          <div style="font-size:10px; color:var(--t3); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Capital invertido</div>
+          <div style="font-family:var(--fm); font-size:18px; font-weight:800; color:var(--a4);">${f(i.capital)}</div>
+        </div>
+        <div style="flex:1; min-width:120px; background:${i.rendimiento >= 0 ? 'rgba(0,220,130,.05)' : 'rgba(255,96,96,.05)'}; border:1px solid ${i.rendimiento >= 0 ? 'rgba(0,220,130,.2)' : 'rgba(255,96,96,.2)'}; border-radius:10px; padding:12px;">
+          <div style="font-size:10px; color:var(--t3); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Rendimiento</div>
+          <div style="font-family:var(--fm); font-size:18px; font-weight:800; color:${colorRend};">${signo}${f(i.rendimiento)}</div>
+          <div style="font-size:11px; color:${colorRend}; margin-top:2px; font-weight:600;">${signo}${rendPct}%</div>
+        </div>
+      </div>
+
+      <!-- PIE: Acciones -->
+      <div style="padding:12px 20px; display:flex; justify-content:flex-end; gap:8px;">
+        <button class="btn bg bsm" onclick="openRendimiento(${i.id},'${he(i.nombre)}')" aria-label="Actualizar valor de ${he(i.nombre)}">📊 Actualizar valor</button>
+        <button class="btn-eliminar-deu" onclick="delInversion(${i.id})" style="padding:6px 12px;" aria-label="Eliminar ${he(i.nombre)}">🗑️</button>
+      </div>
+
+    </article>`;
+  }).join('');
+}
 function openRendimiento(id,n){document.getElementById('rend-id').value=id;document.getElementById('rend-t').textContent='Actualizar: '+n;openM('m-rendimiento');}
 function guardarRendimiento(){const id=+document.getElementById('rend-id').value;const nv=+document.getElementById('rend-val').value;if(!nv)return;const inv=S.inversiones.find(x=>x.id===id);if(inv)inv.rendimiento=nv-inv.capital;closeM('m-rendimiento');save();renderInversiones();}
 function delInversion(id){S.inversiones=S.inversiones.filter(x=>x.id!==id);save();renderInversiones();}
@@ -1361,6 +1489,26 @@ function renderPagos() {
           </div>
         </div>`);
     }
+
+    // Aviso de pagos que caen en fin de semana
+    const pagosFinSemana = up.filter(p => {
+      const d = new Date(p.fecha + 'T12:00:00');
+      const dia = d.getDay(); // 0=domingo, 6=sábado
+      const dias = Math.ceil((d - now) / 86400000);
+      return (dia === 0 || dia === 6) && dias >= 0 && dias <= 14;
+    });
+    if (pagosFinSemana.length > 0) {
+      const nombres = pagosFinSemana.map(p => he(p.desc)).join(', ');
+      avisos.push(`
+        <div style="display:flex; align-items:flex-start; gap:12px; padding:14px 24px; border-bottom:1px solid var(--b1); background:rgba(59,158,255,.03);">
+          <span style="font-size:20px; flex-shrink:0;">📆</span>
+          <div style="flex:1;">
+            <div style="font-weight:700; font-size:12px; color:var(--a4); margin-bottom:3px;">Pago en fin de semana — revisa con tu banco</div>
+            <div style="font-size:11px; color:var(--t3); line-height:1.6;"><strong style="color:var(--t2);">${nombres}</strong> cae en sábado o domingo. Algunos bancos lo procesan el siguiente día hábil, pero los intereses corren desde la fecha original. Paga antes del viernes para estar seguro.</div>
+          </div>
+        </div>`);
+    }
+
     avisosEl.innerHTML = avisos.join('');
   }
 
@@ -1375,60 +1523,65 @@ function renderPagos() {
   };
 
   // ── CARDS MODERNAS ──
+  const iconoFrecuencia = { mensual: '↻', quincenal: '↻', unico: '✦' };
+  const classFrecuencia = { mensual: 'pill pb', quincenal: 'pill py', unico: 'pill pg' };
+  const labelFrecuencia = { mensual: 'Mensual', quincenal: 'Quincenal', unico: 'Único' };
+
   let htmlLista = '';
   if (up.length > 0) {
     htmlLista = up.map(p => {
       const dObj = new Date(p.fecha + 'T12:00:00'); dObj.setHours(0,0,0,0);
       const dias = Math.ceil((dObj - now) / 86400000);
-      const fechaFmt = new Date(p.fecha + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'short', month: 'short', day: 'numeric' });
+      const fechaFmt = new Date(p.fecha + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'long', month: 'long', day: 'numeric' });
       const fondo = getFondo(p.fondo);
 
-      let colorEstado = 'var(--a2)', textoEstado = `En ${dias} días`, borderLeft = 'transparent', bgCard = '';
-      if (dias < 0)       { colorEstado = 'var(--dan)'; textoEstado = `Vencido hace ${Math.abs(dias)} día${Math.abs(dias)>1?'s':''}`;  borderLeft = 'var(--dan)'; bgCard = 'background:rgba(255,68,68,.02);'; }
-      else if (dias === 0) { colorEstado = 'var(--a1)';  textoEstado = '¡Hoy!';       borderLeft = 'var(--a1)';  bgCard = 'background:rgba(0,220,130,.02);'; }
-      else if (dias === 1) { colorEstado = 'var(--a3)';  textoEstado = 'Mañana';      borderLeft = 'var(--a3)'; }
+      let colorEstado = 'var(--a2)', textoEstado = `En ${dias} días`, borderLeft = 'transparent';
+      if (dias < 0)        { colorEstado = 'var(--dan)'; textoEstado = `Vencido hace ${Math.abs(dias)} día${Math.abs(dias)>1?'s':''}`;  borderLeft = 'var(--dan)'; }
+      else if (dias === 0) { colorEstado = 'var(--a1)';  textoEstado = '¡Hoy!';        borderLeft = 'var(--a1)'; }
+      else if (dias === 1) { colorEstado = 'var(--a3)';  textoEstado = 'Mañana';       borderLeft = 'var(--a3)'; }
       else if (dias <= 7)  { colorEstado = 'var(--a2)';  textoEstado = `En ${dias} días`; }
 
-      const frecBadge = p.repetir === 'mensual'
-        ? '<span class="pill pb" style="font-size:9px;">↻ Mensual</span>'
-        : p.repetir === 'quincenal'
-        ? '<span class="pill py" style="font-size:9px;">↻ Quincenal</span>'
-        : '<span class="pill pg" style="font-size:9px;">✦ Único</span>';
+      const frec = p.repetir || 'unico';
+      const frecBadge = `<span class="${classFrecuencia[frec]||'pill pg'}" style="font-size:9px;">${iconoFrecuencia[frec]||'✦'} ${labelFrecuencia[frec]||'Único'}</span>`;
 
       return `
-      <article style="background:var(--s1); border:1px solid var(--b1); border-left:4px solid ${borderLeft}; border-radius:16px; margin-bottom:12px; overflow:hidden; ${bgCard} transition:transform .2s, box-shadow .2s;"
-        onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'"
-        onmouseout="this.style.transform='';this.style.boxShadow=''">
+      <article class="pago-card" style="border-left: 4px solid ${borderLeft};" aria-label="Pago: ${he(p.desc)}">
 
+        <!-- CABECERA -->
         <div style="display:flex; justify-content:space-between; align-items:flex-start; padding:16px 20px 14px; border-bottom:1px solid var(--b1); flex-wrap:wrap; gap:8px;">
-          <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
-            <div style="width:40px; height:40px; border-radius:10px; background:var(--s2); border:1px solid var(--b2); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;" aria-hidden="true">📅</div>
+          <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
+            <div style="width:44px; height:44px; border-radius:12px; background:var(--s2); border:1px solid var(--b2); display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;" aria-hidden="true">📅</div>
             <div style="min-width:0;">
-              <div style="font-weight:800; font-size:15px; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${he(p.desc)}</div>
-              <div style="margin-top:5px;">${frecBadge}</div>
+              <div style="font-weight:800; font-size:16px; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${he(p.desc)}">${he(p.desc)}</div>
+              <div style="margin-top:5px; display:flex; align-items:center; gap:6px;">
+                ${frecBadge}
+                <span style="font-size:10px; color:var(--t3); text-transform:capitalize;">${fechaFmt}</span>
+              </div>
             </div>
           </div>
           <div style="text-align:right; flex-shrink:0;">
-            <div style="font-family:var(--fm); font-size:26px; font-weight:800; color:${colorEstado}; letter-spacing:-1px; line-height:1;">${f(p.monto)}</div>
-            <div style="font-size:10px; color:var(--t3); margin-top:5px; text-transform:capitalize;">${fechaFmt}</div>
+            <div style="font-family:var(--fm); font-size:28px; font-weight:800; color:var(--t1); letter-spacing:-1px; line-height:1;">${f(p.monto)}</div>
           </div>
         </div>
 
+        <!-- PIE -->
         <div style="padding:12px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
           <div style="display:flex; align-items:center; gap:8px;">
-            <span style="font-size:18px;">${fondo.icon}</span>
+            <span style="font-size:20px;" aria-hidden="true">${fondo.icon}</span>
             <div>
               <div style="font-size:10px; color:var(--t3); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Sale de</div>
               <div style="font-size:12px; font-weight:600; color:var(--t2);">${he(fondo.name)}</div>
             </div>
           </div>
+
           <div style="display:flex; align-items:center; gap:6px;">
-            <div style="width:8px; height:8px; border-radius:50%; background:${colorEstado}; flex-shrink:0;"></div>
+            <div style="width:8px; height:8px; border-radius:50%; background:${colorEstado}; flex-shrink:0;" aria-hidden="true"></div>
             <span style="font-size:12px; font-weight:700; color:${colorEstado};">${textoEstado}</span>
           </div>
-          <div style="display:flex; gap:8px;">
-            <button class="btn bp bsm" onclick="marcarPagado(${p.id})" style="padding:8px 14px;" aria-label="Marcar como pagado">✓ Pagar</button>
-            <button class="btn bd bsm" onclick="delPago(${p.id})" style="padding:8px 10px;" aria-label="Eliminar pago">×</button>
+
+          <div style="display:flex; gap:8px; margin-left:auto;">
+            <button class="btn bp bsm" onclick="marcarPagado(${p.id})" style="padding:8px 16px;" aria-label="Pagar ${he(p.desc)}">✓ Pagar</button>
+            <button class="btn-eliminar-deu" onclick="delPago(${p.id})" style="padding:6px 12px;" aria-label="Eliminar ${he(p.desc)}">🗑️</button>
           </div>
         </div>
 
@@ -1436,12 +1589,15 @@ function renderPagos() {
     }).join('');
   } else {
     htmlLista = `
-      <div style="text-align:center; padding:48px 20px; background:var(--s1); border-radius:16px; border:1px dashed rgba(0,220,130,.3); margin-top:4px;">
-        <div style="font-size:56px; margin-bottom:14px;">🗓️</div>
-        <div style="font-weight:800; font-size:18px; color:var(--t1); margin-bottom:8px;">Sin pagos pendientes</div>
-        <div style="color:var(--t3); font-size:13px; max-width:280px; margin:0 auto; line-height:1.6;">Agenda tus próximos compromisos para llevar el control de tu liquidez semana a semana.</div>
+      <div style="text-align:center; padding:40px 20px;">
+        <div style="font-size:48px; margin-bottom:14px;">🗓️</div>
+        <div style="font-weight:800; font-size:17px; color:var(--t1); margin-bottom:8px;">Sin pagos pendientes</div>
+        <div style="color:var(--t3); font-size:13px; max-width:260px; margin:0 auto; line-height:1.6;">Agenda tus próximos compromisos para no perder el control de tu liquidez.</div>
       </div>`;
   }
+
+  const countEl = document.getElementById('pa-lst-count');
+  if (countEl) countEl.textContent = up.length > 0 ? `${up.length} pago${up.length !== 1 ? 's' : ''} pendiente${up.length !== 1 ? 's' : ''}` : '';
 
   setHtml('pa-lst', htmlLista);
 
@@ -1637,12 +1793,17 @@ function renderCal() {
       dots += `</div>`;
     } else { dots = `<div style="height:5px; margin-top:4px;"></div>`; }
 
-    // Evitamos que el hover (gris) sobreescriba el color verde de selección
-    html += `<div class="cal-day-box${todayClass}" style="${style}" onclick="showDayDetails(${day}, this)" onmouseover="if(!this.classList.contains('selected-day')) this.style.background='var(--s3)'" onmouseout="if(!this.classList.contains('selected-day')) this.style.background='${baseBg}'">${daySpan}${dots}</div>`;
+    html += `<div 
+      class="cal-day-box${todayClass}" 
+      role="button" 
+      tabindex="0"
+      aria-label="Día ${day}${ev ? ', tiene compromisos' : ''}"
+      onclick="showDayDetails(${day}, this)"
+      onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showDayDetails(${day}, this)}"
+    >${daySpan}${dots}</div>`;
   }
 
   el.innerHTML = html;
-  el.style.display = 'grid'; el.style.gridTemplateColumns = 'repeat(7, 1fr)'; el.style.gap = '6px';
 }
   
   function showDayDetails(day, element = null) {
@@ -1970,7 +2131,89 @@ function updateDash() {
 
 async function cerrarQ(){if(!S.ingreso)return;const ok=await showConfirm('¿Archivar período?','Cerrar');if(!ok)return;const tG=S.gastos.filter(g=>g.tipo!=='ahorro').reduce((s,g)=>s+(g.montoTotal||g.monto),0);const tA=S.gastos.filter(g=>g.tipo==='ahorro').reduce((s,g)=>s+g.monto,0);const tH=S.gastos.filter(g=>g.hormiga).reduce((s,g)=>s+g.monto,0);const catMap={};S.gastos.filter(g=>g.tipo!=='ahorro').forEach(g=>{catMap[g.cat]=(catMap[g.cat]||0)+(g.montoTotal||g.monto);});S.historial.unshift({id:Date.now(),periodo:`Quincena cerrada: ${hoy()}`,mes:mesStr(),ingreso:S.ingreso,gastado:tG,ahorro:tA,hormiga:tH,catMap});S.gastos=[];S.ingreso=0;save();renderAll();go('hist');}
 function consolMes(){const mes=mesStr();const hist=S.historial.filter(h=>h.mes===mes);let ing=0,eg=0;hist.forEach(h=>{ing+=h.ingreso;eg+=h.gastado;});const gasAct=S.gastos.filter(g=>g.tipo!=='ahorro').reduce((s,g)=>s+(g.montoTotal||g.monto),0);return{ing:ing+S.ingreso,eg:eg+gasAct,bal:(ing+S.ingreso)-(eg+gasAct),q:hist.length+(S.ingreso>0?1:0)};}
-function renderHistorial(){const el=document.getElementById('hi-lst');if(!el)return;el.innerHTML=S.historial.length?S.historial.map(hx=>`<article class="gc"><div class="fb mb"><div style="font-weight:800">📅 ${hx.periodo}</div><button class="btn bd bsm" onclick="delHistorial(${hx.id})">×</button></div><div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--t3)"><span>Ingreso <span class="mono" style="color:var(--t1)">${f(hx.ingreso)}</span></span><span>Gastado <span class="mono" style="color:var(--a3)">${f(hx.gastado)}</span></span><span>Ahorrado <span class="mono" style="color:var(--a1)">${f(hx.ahorro)}</span></span></div></article>`).join(''):'<div class="emp">Sin historial</div>';}
+function renderHistorial() {
+  const el = document.getElementById('hi-lst');
+  if (!el) return;
+
+  if (!S.historial.length) {
+    el.innerHTML = `
+      <div style="text-align:center; padding:40px 20px; background:var(--s1); border-radius:16px; border:1px dashed rgba(0,220,130,.3);">
+        <div style="font-size:48px; margin-bottom:14px;">🕰️</div>
+        <div style="font-weight:800; font-size:17px; color:var(--t1); margin-bottom:8px;">Sin historial aún</div>
+        <div style="color:var(--t3); font-size:13px; max-width:260px; margin:0 auto; line-height:1.6;">Cuando cierres un período, aquí quedará el resumen guardado para siempre.</div>
+      </div>`;
+    return;
+  }
+
+  el.innerHTML = S.historial.map(hx => {
+    const balance = hx.ingreso - hx.gastado;
+    const colorBal = balance >= 0 ? 'var(--a1)' : 'var(--dan)';
+    const signoBal = balance >= 0 ? '+' : '';
+    const tasaAhorro = hx.ingreso > 0 ? Math.round((hx.ahorro / hx.ingreso) * 100) : 0;
+    const tasaGasto = hx.ingreso > 0 ? Math.round((hx.gastado / hx.ingreso) * 100) : 0;
+
+    // Barra de distribución visual
+    const pctGasto = hx.ingreso > 0 ? Math.min((hx.gastado / hx.ingreso) * 100, 100) : 0;
+    const pctAhorro = hx.ingreso > 0 ? Math.min((hx.ahorro / hx.ingreso) * 100, 100) : 0;
+    const pctHormiga = hx.ingreso > 0 ? Math.min(((hx.hormiga || 0) / hx.ingreso) * 100, 100) : 0;
+
+    return `
+    <article class="hist-card" aria-label="Historial: ${hx.periodo}">
+
+      <!-- CABECERA -->
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid var(--b1); flex-wrap:wrap; gap:8px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="width:44px; height:44px; border-radius:12px; background:var(--s2); border:1px solid var(--b2); display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;" aria-hidden="true">📅</div>
+          <div>
+            <div style="font-weight:800; font-size:14px; color:var(--t1);">${hx.periodo}</div>
+            <div style="font-size:11px; color:var(--t3); margin-top:2px;">Balance: <span style="font-family:var(--fm); font-weight:700; color:${colorBal};">${signoBal}${f(balance)}</span></div>
+          </div>
+        </div>
+        <button class="btn-eliminar-deu" onclick="delHistorial(${hx.id})" style="padding:6px 12px;" aria-label="Eliminar historial ${hx.periodo}">🗑️</button>
+      </div>
+
+      <!-- CUERPO: 4 métricas -->
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--b1);">
+        <div style="background:var(--s1); padding:14px 16px;">
+          <div style="font-size:10px; color:var(--t3); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Ingreso</div>
+          <div style="font-family:var(--fm); font-size:16px; font-weight:800; color:var(--t1);">${f(hx.ingreso)}</div>
+        </div>
+        <div style="background:var(--s1); padding:14px 16px;">
+          <div style="font-size:10px; color:var(--t3); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Gastado</div>
+          <div style="font-family:var(--fm); font-size:16px; font-weight:800; color:var(--dan);">${f(hx.gastado)}</div>
+          <div style="font-size:10px; color:var(--t3); margin-top:2px;">${tasaGasto}% del ingreso</div>
+        </div>
+        <div style="background:var(--s1); padding:14px 16px;">
+          <div style="font-size:10px; color:var(--t3); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Ahorrado</div>
+          <div style="font-family:var(--fm); font-size:16px; font-weight:800; color:var(--a1);">${f(hx.ahorro)}</div>
+          <div style="font-size:10px; color:var(--t3); margin-top:2px;">${tasaAhorro}% del ingreso</div>
+        </div>
+      </div>
+
+      <!-- BARRA DE DISTRIBUCIÓN -->
+      <div style="padding:12px 20px 16px;">
+        <div style="font-size:10px; color:var(--t3); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Distribución del período</div>
+        <div style="height:8px; border-radius:999px; background:var(--s3); overflow:hidden; display:flex;">
+          <div style="width:${pctGasto}%; background:var(--dan); transition:width .6s ease;" title="Gastos ${tasaGasto}%"></div>
+          <div style="width:${pctAhorro}%; background:var(--a1); transition:width .6s ease;" title="Ahorro ${tasaAhorro}%"></div>
+          <div style="width:${pctHormiga}%; background:var(--a2); transition:width .6s ease;" title="Hormiga"></div>
+        </div>
+        <div style="display:flex; gap:14px; margin-top:6px; flex-wrap:wrap;">
+          <div style="display:flex; align-items:center; gap:4px; font-size:10px; color:var(--t3);">
+            <div style="width:8px; height:8px; border-radius:50%; background:var(--dan); flex-shrink:0;"></div> Gastos
+          </div>
+          <div style="display:flex; align-items:center; gap:4px; font-size:10px; color:var(--t3);">
+            <div style="width:8px; height:8px; border-radius:50%; background:var(--a1); flex-shrink:0;"></div> Ahorro
+          </div>
+          ${hx.hormiga > 0 ? `<div style="display:flex; align-items:center; gap:4px; font-size:10px; color:var(--t3);">
+            <div style="width:8px; height:8px; border-radius:50%; background:var(--a2); flex-shrink:0;"></div> Hormiga ${f(hx.hormiga||0)}
+          </div>` : ''}
+        </div>
+      </div>
+
+    </article>`;
+  }).join('');
+}
 function delHistorial(id){S.historial=S.historial.filter(h=>h.id!==id);save();renderHistorial();}
 
 // =========================================================
@@ -2269,7 +2512,7 @@ function toggleSidebar(){const sb=document.getElementById('sidebar');const ex=sb
 
 function actualizarListasFondos() {
   // ── 1. Selectores nativos (<select>) ──
-  const selectores = ['gf-fo', 'oa-fo', 'ag-fo', 'inv-fo', 'prm-fo', 'fe-fo', 'mf-fo', 'cp-fo'];
+  const selectores = ['gf-fo', 'oa-fo', 'ag-fo', 'inv-fo', 'prm-fo', 'fe-fo', 'mf-fo'];
 
   selectores.forEach(id => {
     const sel = document.getElementById(id);
@@ -2297,7 +2540,7 @@ function actualizarListasFondos() {
     return lista;
   };
 
-  ['g-fo', 'eg-fo', 'pgc-fo'].forEach(id => {
+  ['g-fo', 'eg-fo', 'pgc-fo', 'cp-fo'].forEach(id => {
     const wrap = document.getElementById(id + '-wrap');
     const hidden = document.getElementById(id);
     if (!wrap || !hidden) return;
