@@ -42,6 +42,7 @@
     <button class="nb" onclick="go('agen')" title="Agenda"><span class="ni">📅</span><span class="nb-txt">Agenda</span></button>
     <button class="nb" onclick="go('stat')" title="Estadísticas"><span class="ni">📊</span><span class="nb-txt">Estadísticas</span></button>
     <button class="nb" onclick="go('hist')" title="Historial"><span class="ni">🕰️</span><span class="nb-txt">Historial</span></button>
+    <button class="nb nb-theme-mobile" onclick="toggleTheme()" id="btn-theme-mobile" title="Cambiar tema"><span class="ni">☀️</span></button>
   </nav>
   <div class="sb-bottom">
     <button class="nb sb-theme-btn" onclick="toggleTheme()" id="btn-theme" title="Cambiar tema">
@@ -596,7 +597,7 @@
             <div style="width:32px; height:32px; border-radius:8px; background:rgba(255,68,68,.1); border:1px solid rgba(255,68,68,.2); display:flex; align-items:center; justify-content:center; font-size:16px;">🚨</div>
             <span style="font-size:10px; font-weight:700; color:var(--t3); text-transform:uppercase; letter-spacing:1px;">Pagos vencidos</span>
           </div>
-          <div style="font-family:var(--fm); font-size:26px; font-weight:800; color:var(--a1); letter-spacing:-1px;" id="ag-vencidos">0</div>
+          <div style="font-family:var(--fm); font-size:26px; font-weight:800; color:var(--a1); letter-spacing:-1px;" id="ag-vencidos" aria-live="polite" aria-atomic="true">0</div>
           <div style="font-size:11px; color:var(--t3); margin-top:6px;" id="ag-vencidos-msg">sin pagos vencidos ✅</div>
         </div>
 
@@ -624,7 +625,13 @@
         <div id="cal-details" style="display:none; margin-top:16px; padding:12px; background:var(--s2); border-radius:8px; border:1px solid var(--b2);"></div>
       </div>
 
-      <div id="pa-lst"></div>
+      <div class="card" style="padding:0; overflow:hidden;">
+        <div style="padding:16px 20px; border-bottom:1px solid var(--b1); display:flex; justify-content:space-between; align-items:center;">
+          <span class="ct" style="margin:0;">Lista de próximos pagos</span>
+          <span class="tm" id="pa-lst-count" style="font-size:10px;"></span>
+        </div>
+        <div id="pa-lst" style="padding:16px;"></div>
+      </div>
     </div>
 
   </section>
@@ -1093,9 +1100,20 @@
     
     <div class="fg">
       <label>¿De dónde salió el dinero finalmente?</label>
-      <select id="cp-fo"></select>
+      <div class="fund-select" id="cp-fo-wrap">
+        <input type="hidden" id="cp-fo" value="efectivo">
+        <div class="fund-sel-trigger" onclick="toggleFundSelect('cp-fo')">
+          <span class="fund-sel-icon">💵</span>
+          <div class="fund-sel-info">
+            <div class="fund-sel-name">Efectivo</div>
+            <div class="fund-sel-bal">Disponible: $0</div>
+          </div>
+          <span class="fund-sel-arrow">▾</span>
+        </div>
+        <div class="fund-sel-opts"></div>
+      </div>
     </div>
-    
+
     <input type="hidden" id="cp-id">
     <button class="btn bp bfw" onclick="ejecutarPagoAgendado()">Registrar Pago</button>
   </div>
