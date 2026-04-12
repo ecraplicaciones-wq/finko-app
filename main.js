@@ -44,6 +44,7 @@ function renderAll() {
     renderGastos(); updateDash(); renderObjetivos(); renderInversiones(); 
     renderDeudas(); renderFijos(); renderPagos(); renderHistorial(); 
     updSaldo(); renderStats(); renderCuentas(); renderDashCuentas();
+    actualizarVistaFondo();
   });
 }
 
@@ -57,8 +58,13 @@ function updateBadge(){
 function go(id){
   if (window.innerWidth <= 768) document.getElementById('sidebar')?.classList.remove('open');
   NAVS.forEach(n => { const s = document.getElementById('sec-'+n); if(s) s.classList.toggle('active', n === id); });
-  document.querySelectorAll('.nb').forEach((b,i) => { b.classList.toggle('active', NAVS[i] === id); });
+  document.querySelectorAll('.nb').forEach((b,i) => {
+    const isActive = NAVS[i] === id;
+    b.classList.toggle('active', isActive);
+    b.setAttribute('aria-current', isActive ? 'page' : 'false');
+  });
   if(id === 'agen') renderCal(); if(id === 'stat') renderStats(); if(id === 'gast') updSaldo();
+  sr(`Sección ${id}`);
 }
 
 function setPer(tipo, el) {
@@ -166,14 +172,17 @@ async function resetTodo() {
 
 }
 
-async function resetQuincena() {
-  const ok = await showConfirm('Esto elimina los gastos del período actual. Tus objetivos y deudas NO se verán afectados.','↺ Resetear período');
-  if(!ok) return;
-  S.gastos.filter(g=>g.tipo!=='ahorro').forEach(g=>refF(g.fondo, g.montoTotal||g.monto));
-  
-  S.gastos=[]; S.ingreso=0;
-  save(); renderAll(); go('dash');
-
+async function resetQuincena() { 
+    const ok = await showConfirm('Esto elimina los gastos del período actual. Tus objetivos y deudas NO se verán afectados.','↺ Resetear período');
+    if(!ok) return; 
+    S.gastos.filter(g=>g.tipo!=='ahorro').forEach(g=>refF(g.fondo, g.montoTotal||g.monto)); 
+    const mes = mesStr();
+    S.gastosFijos.forEach(g => { g.pagadoEn = g.pagadoEn.filter(m => m !== mes); });
+    S.gastos=[]; 
+    S.ingreso=0; 
+    save(); 
+    renderAll(); 
+    go('dash'); 
 }
 
 // ─── 3. SALDOS Y FONDOS ───
@@ -365,7 +374,7 @@ function abrirEditarGasto(id) {
   document.getElementById('eg-mo').value = g.monto;
   document.getElementById('eg-ca').value = g.cat;
   document.getElementById('eg-ti').value = g.tipo;
-  document.getElementById('eg-ho').value = g.hormiga ? 'si' : 'no';
+  // hormiga se deriva del tipo al guardar
   document.getElementById('eg-fe').value = g.fecha;
   const hiddenFo = document.getElementById('eg-fo');
   if (hiddenFo) hiddenFo.value = g.fondo || 'efectivo';
@@ -386,7 +395,7 @@ async function guardarEditarGasto() {
   g.cat = document.getElementById('eg-ca').value;
   g.tipo = document.getElementById('eg-ti').value;
   g.fondo = nFondo;
-  g.hormiga = document.getElementById('eg-ho').value === 'si';
+  g.hormiga = (document.getElementById('eg-ti').value === 'hormiga');
   g.fecha = document.getElementById('eg-fe').value;
   if (g.tipo !== 'ahorro') desF(nFondo, nMonto);
   closeM('m-edit-gasto');
@@ -435,13 +444,19 @@ function renderFijos(){
 }
 
 function abrirModalFijo(id) { 
-  const fx = S.gastosFijos.find(x => x.id == id); 
-  if (!fx) return; 
-  idFijoPendiente = id; 
-  document.getElementById('mf-nombre').innerText = fx.nombre; 
-  document.getElementById('mf-monto').innerText = f(fx.cuatroXMil ? (fx.montoTotal || Math.round(fx.monto*1.004)) : fx.monto); 
-  actualizarListasFondos();
-  openM('modal-pagar-fijo'); 
+    const fx = S.gastosFijos.find(x => x.id == id); 
+    if (!fx) return; 
+    idFijoPendiente = id;
+    document.getElementById('mf-nombre').innerText = fx.nombre;
+    document.getElementById('mf-monto').innerText = f(fx.cuatroXMil ? (fx.montoTotal || Math.round(fx.monto*1.004)) : fx.monto); 
+    actualizarListasFondos();
+    
+    // ESTA ES LA LÍNEA CRÍTICA QUE RELLENA EL BOTÓN VACÍO
+    if(typeof updCustomFundButton === 'function') {
+        updCustomFundButton('mf-fo');
+    }
+    
+    openM('modal-pagar-fijo'); 
 }
 
 function cerrarModalFijo() { closeM('modal-pagar-fijo'); idFijoPendiente = null; }
@@ -707,8 +722,10 @@ function obtenerAlertaMora(deuda) {
   const diaPago = deuda.diaPago || 1;
   const hoy = new Date();
   
-  // Creamos la fecha límite asumiendo que es en el mes actual
-  let fechaLimite = new Date(hoy.getFullYear(), hoy.getMonth(), diaPago);
+  // Clampea el día al último día real del mes (ej: día 30 en febrero → día 28)
+  const ultimoDiaMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
+  const diaReal = Math.min(diaPago, ultimoDiaMes);
+  let fechaLimite = new Date(hoy.getFullYear(), hoy.getMonth(), diaReal);
   
   // Si el día límite ya pasó, hay que revisar si el usuario hizo un abono a esta deuda ESTE MES
   if (hoy > fechaLimite) {
@@ -794,6 +811,22 @@ function renderDeudas() {
     const avisos = [];
     const deudasVivas = S.deudas.filter(d => (d.total - d.pagado) > 0);
     const totalPendiente = deudasVivas.reduce((s, d) => s + (d.total - d.pagado), 0);
+
+    // 0. TASA DE USURA — alerta si alguna deuda supera el límite legal
+    // La Superfinanciera publica la tasa máxima cada trimestre.
+    // Referencia actualizada: Circular Externa Superfinanciera (consultar trimestral)
+    const TASA_USURA_EA = 33.31; // Actualizar cada trimestre según Superfinanciera
+    const deudasUsura = deudasVivas.filter(d => (d.tasa || 0) > TASA_USURA_EA);
+    if (deudasUsura.length > 0) {
+      avisos.push(`
+        <div style="display:flex; align-items:flex-start; gap:12px; padding:14px 24px; border-bottom:1px solid var(--b1); background:rgba(255,68,68,.03);">
+          <span style="font-size:20px; flex-shrink:0;">⚖️</span>
+          <div style="flex:1;">
+            <div style="font-weight:700; font-size:12px; color:var(--dan); margin-bottom:3px;">Posible cobro ilegal — Tasa de Usura</div>
+            <div style="font-size:11px; color:var(--t3); line-height:1.6;"><strong style="color:var(--t2);">${deudasUsura.map(d => d.nombre).join(', ')}</strong> tiene una tasa registrada por encima del límite legal vigente (${TASA_USURA_EA}% E.A.). En Colombia, cobrar por encima de la tasa de usura es un delito. Consulta con la Superfinanciera o un abogado. <span style="background:var(--s2); border:1px solid var(--b2); border-radius:4px; padding:2px 6px; font-size:10px; font-weight:700; font-family:var(--fm);">⚖️ Art. 305 Código Penal</span></div>
+          </div>
+        </div>`);
+    }
 
     // 1. UNIFICACIÓN — 2+ deudas con tasa >= 2%
     const deudasCaras = deudasVivas.filter(d => (d.tasa || 0) >= 2);
@@ -887,7 +920,10 @@ function renderDeudas() {
       .filter(d => tiposFormales.includes(d.tipo) && d.diaPago)
       .map(d => {
         const diaPago = d.diaPago;
-        const fechaLimiteMes = new Date(hoyMora.getFullYear(), hoyMora.getMonth(), diaPago);
+        // Clampea el día al último día real del mes actual
+        const ultimoDiaActual = new Date(hoyMora.getFullYear(), hoyMora.getMonth() + 1, 0).getDate();
+        const diaRealActual = Math.min(diaPago, ultimoDiaActual);
+        const fechaLimiteMes = new Date(hoyMora.getFullYear(), hoyMora.getMonth(), diaRealActual);
         const retrocedeMes = hoyMora < fechaLimiteMes;
 
         // Determinamos la fecha límite real y el mes a verificar
@@ -897,7 +933,10 @@ function renderDeudas() {
           const mPrev = hoyMora.getMonth() - 1;
           const aPrev = mPrev < 0 ? hoyMora.getFullYear() - 1 : hoyMora.getFullYear();
           const mPrevReal = ((mPrev % 12) + 12) % 12;
-          fechaLimite = new Date(aPrev, mPrevReal, diaPago);
+          // Clampea también para el mes anterior
+          const ultimoDiaPrev = new Date(aPrev, mPrevReal + 1, 0).getDate();
+          const diaRealPrev = Math.min(diaPago, ultimoDiaPrev);
+          fechaLimite = new Date(aPrev, mPrevReal, diaRealPrev);
           mesVerificar = `${aPrev}-${String(mPrevReal + 1).padStart(2,'0')}`;
         } else {
           // El pago de este mes ya venció → revisamos si pagó este mes
@@ -1022,21 +1061,38 @@ function renderDeudas() {
   const nombreTipoMap = { tarjeta:'Tarjeta de Crédito', credito:'Crédito Libre Inversión', hipoteca:'Crédito Hipotecario', vehiculo:'Crédito Vehicular', educacion:'Crédito Educativo', persona:'Préstamo Personal', salud:'Deuda Médica', otro:'Otra Deuda' };
   
   const consejoMap = {
-    tarjeta: `💳 <strong>Truco clave:</strong> Compra siempre a <strong>1 sola cuota</strong> y paga el total antes del corte. Nunca saques plata en efectivo con la tarjeta. Eso cobra intereses desde el primer día sin período de gracia.`,
-
-    credito: `🏦 <strong>Tu derecho:</strong> Puedes pagar más del mínimo sin multa. Llama al banco y pide <strong>"abono extraordinario a capital con reducción de plazo"</strong>. Así pagas menos tiempo y menos intereses. Nunca pidas "reducción de cuota".`,
-
-    hipoteca: `🏠 <strong>Ahorra millones:</strong> Si llevas más de un año pagando, puedes llevar tu crédito a otro banco con mejor tasa. Primero pregúntale a tu banco actual. A veces ellos mismos te mejoran la tasa para no perderte.`,
-
-    vehiculo: `🚗 <strong>Sal más rápido:</strong> Haz abonos extra a capital cuando puedas. Si el carro tiene más de 3 años y debes menos de lo que vale, considera venderlo y comprar algo más económico de contado.`,
-
-    educacion: `🎓 <strong>Busca alivios:</strong> Llama a tu entidad y pregunta por refinanciación o períodos de gracia si estás pasando un momento difícil. El ICETEX tiene varios programas de apoyo que poca gente conoce.`,
-
-    persona: `👤 <strong>Regla de oro:</strong> Aunque sea con un familiar, escribe en un papel cuánto debes y cuándo pagas. Ambos firman. Si no puedes pagar a tiempo, avisa antes. El silencio es lo que daña las relaciones.`,
-
-    salud: `🏥 <strong>Negocia sin miedo:</strong> Las clínicas prefieren recibir algo a no recibir nada. Llama al área de cartera y pregunta por descuento de contado o plan sin intereses. En muchos casos aceptan entre el 60% y 80% del valor.`,
-
-    otro: `📦 <strong>3 reglas que siempre aplican:</strong> Nunca ignores una deuda, crece sola. Siempre negocia, la mayoría prefiere un acuerdo. Paga primero la de mayor tasa, es la que más te cuesta cada día.`
+    tarjeta: {
+      texto: `💳 <strong>Truco clave:</strong> Compra siempre a <strong>1 sola cuota</strong> y paga el total antes del corte. Nunca saques plata en efectivo con la tarjeta cobra intereses desde el primer día sin período de gracia.`,
+      ley: ''
+    },
+    credito: {
+      texto: `🏦 <strong>Tu derecho:</strong> Puedes pagar más del mínimo sin multa. Llama al banco y pide <strong>"abono extraordinario a capital con reducción de plazo"</strong>. Así pagas menos tiempo y menos intereses. Nunca pidas "reducción de cuota".`,
+      ley: 'Ley 546/1999'
+    },
+    hipoteca: {
+      texto: `🏠 <strong>Ahorra millones:</strong> Puedes llevar tu crédito hipotecario a otro banco con mejor tasa sin penalización. Primero pregúntale a tu banco a veces ellos mismos te mejoran la tasa para no perderte.`,
+      ley: 'Ley 546/1999, Art. 20'
+    },
+    vehiculo: {
+      texto: `🚗 <strong>Sal más rápido:</strong> Haz abonos extra a capital cuando puedas. Si el carro tiene más de 3 años y debes menos de lo que vale, considera venderlo y comprar algo más económico de contado.`,
+      ley: ''
+    },
+    educacion: {
+      texto: `🎓 <strong>Busca alivios:</strong> Si estás pasando un momento difícil, el ICETEX tiene períodos de gracia y programas de apoyo que poca gente conoce. Llama y pregunta antes de entrar en mora.`,
+      ley: 'Ley 1002/2005'
+    },
+    persona: {
+      texto: `👤 <strong>Regla de oro:</strong> Aunque sea con un familiar, escribe en un papel cuánto debes y cuándo pagas. Ambos firman. Si no puedes pagar a tiempo, avisa antes, el silencio es lo que daña las relaciones.`,
+      ley: ''
+    },
+    salud: {
+      texto: `🏥 <strong>Negocia sin miedo:</strong> Las clínicas prefieren recibir algo a no recibir nada. Llama al área de cartera y pregunta por descuento de contado o plan sin intereses en muchos casos aceptan entre el 60% y 80% del valor.`,
+      ley: ''
+    },
+    otro: {
+      texto: `📦 <strong>3 reglas que siempre aplican:</strong> Nunca ignores una deuda, crece sola. Siempre negocia, la mayoría prefiere un acuerdo. Paga primero la de mayor tasa — es la que más te cuesta cada día.`,
+      ley: ''
+    }
   };
 
   el.innerHTML = copia.map(d => { 
@@ -1045,7 +1101,7 @@ function renderDeudas() {
     const esPrioridad = (d.id === primeraVivaId); 
     const icono = iconoTipoMap[d.tipo] || '📦'; 
     const nombreTipo = nombreTipoMap[d.tipo] || 'Otra Deuda'; 
-    const consejo = consejoMap[d.tipo] || ''; 
+    const { texto: consejoTexto, ley: consejoLey } = consejoMap[d.tipo] || { texto: '', ley: '' };
 
     // 🆘 RECUPERAMOS TUS VARIABLES DE DISEÑO
     const colorBarra = p >= 100 ? 'var(--a1)' : p > 50 ? 'var(--a2)' : 'var(--a4)';
@@ -1071,81 +1127,84 @@ function renderDeudas() {
    // 🎯 NUEVO: Calculamos la alerta de mora analizando el día de pago de la deuda
   const alertaMoraHTML = obtenerAlertaMora(d);
 
+    const consejoAbierto = esPrioridad && consejoTexto;
+
     return `
-    <article class="deuda-card-animada" style="background:var(--s1); border:1px solid var(--b1); border-radius:16px; margin-bottom:16px; overflow:hidden; ${borderPrioridad} transition: transform .3s ease, box-shadow .3s ease; animation-delay:${copia.indexOf(d) * 0.08}s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+    <article class="deuda-card-animada gc" 
+      style="background:var(--s1); border:1px solid var(--b1); border-radius:16px; margin-bottom:16px; overflow:hidden; ${borderPrioridad} animation-delay:${copia.indexOf(d) * 0.08}s;"
+      aria-label="Deuda: ${he(d.nombre)}">
 
       <!-- CABECERA: Nombre + Cuota -->
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; padding:20px 20px 16px; border-bottom:1px solid var(--b1);">
-        <div style="display:flex; align-items:center; gap:12px;">
-          <div style="width:44px; height:44px; border-radius:12px; background:var(--s2); border:1px solid var(--b2); display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">${icono}</div>
-          <div>
-            <div style="font-weight:800; font-size:17px; color:var(--t1); line-height:1.2;">${he(d.nombre)}</div>
-            <div style="font-size:11px; color:var(--t3); margin-top:3px;">${nombreTipo} · ${d.tasa}% anual · ${d.periodicidad}</div>
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; padding:20px 20px 16px; border-bottom:1px solid var(--b1); flex-wrap:wrap; gap:12px;">
+        <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
+          <div style="width:44px; height:44px; border-radius:12px; background:var(--s2); border:1px solid var(--b2); display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;" aria-hidden="true">${icono}</div>
+          <div style="min-width:0;">
+            <div style="font-weight:800; font-size:17px; color:var(--t1); line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${he(d.nombre)}</div>
+            <div style="font-size:11px; color:var(--t3); margin-top:3px;">${nombreTipo}${d.tasa > 0 ? ` · ${d.tasa}% E.A.` : ''} · ${d.periodicidad}</div>
             <div style="margin-top:6px;">${badgePrioridad}</div>
           </div>
         </div>
-        <div style="text-align:right; flex-shrink:0; margin-left:12px;">
+        <div style="text-align:right; flex-shrink:0;">
           <div style="font-size:10px; font-weight:700; color:var(--t3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Cuota a pagar</div>
-          <div style="font-family:var(--fm); font-size:26px; font-weight:800; color:var(--a2); line-height:1;">${f(d.cuota)}</div>
+          <div style="font-family:var(--fm); font-size:26px; font-weight:800; color:var(--t1); line-height:1;">${f(d.cuota)}</div>
+          ${d.diaPago ? `<div style="font-size:10px; color:var(--t3); margin-top:4px;">📅 Día ${d.diaPago} de cada mes</div>` : ''}
         </div>
       </div>
 
       <!-- CUERPO: Progreso + Saldo -->
       <div style="padding:16px 20px; border-bottom:1px solid var(--b1);">
-        
-        <!-- Saldo pendiente grande -->
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:12px;">
           <div>
             <div style="font-size:10px; color:var(--t3); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Saldo pendiente</div>
-            <div style="font-family:var(--fm); font-size:22px; font-weight:800; color:var(--t1);">${f(pend)}</div>
+            <div style="font-family:var(--fm); font-size:24px; font-weight:800; color:var(--dan);">${f(pend)}</div>
           </div>
           <div style="text-align:right;">
             <div style="font-size:10px; color:var(--t3); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Ya pagaste</div>
-            <div style="font-family:var(--fm); font-size:22px; font-weight:800; color:${colorBarra};">${f(d.pagado)}</div>
+            <div style="font-family:var(--fm); font-size:24px; font-weight:800; color:${colorBarra};">${f(d.pagado)}</div>
           </div>
         </div>
-
-        <!-- Barra de progreso -->
-        <div style="height:10px; background:var(--s3); border-radius:999px; overflow:hidden; margin-bottom:8px;">
+        <div style="height:10px; background:var(--s3); border-radius:999px; overflow:hidden; margin-bottom:8px;" role="progressbar" aria-valuenow="${Math.round(p)}" aria-valuemin="0" aria-valuemax="100" aria-label="Progreso de pago">
           <div style="height:100%; width:${p}%; background:${colorBarra}; border-radius:999px; transition:width .6s ease;"></div>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
           <span style="font-size:11px; color:${p > 0 ? colorBarra : 'var(--t3)'}; font-weight:${p > 0 ? '700' : '400'};">${textoBarra || 'Aún no has abonado a esta deuda'}</span>
           <span style="font-size:11px; color:var(--t3);">Total: ${f(d.total)}</span>
         </div>
-
-        <!-- Tiempo estimado -->
         <div style="font-size:12px; line-height:1.5;">${tiempoTexto}</div>
+        ${alertaMoraHTML}
       </div>
 
-      <!-- PIE: Consejo plegable + Botones -->
+      <!-- PIE: Consejo + Botones -->
       <div style="padding:14px 20px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-          
-          <!-- Consejo plegable -->
-          ${consejo ? `
-          <button onclick="const c=this.nextElementSibling; const isOpen=c.style.display==='block'; c.style.display=isOpen?'none':'block'; this.textContent=isOpen?'💡 Ver consejo':'💡 Ocultar consejo';"
-            style="background:none; border:none; color:var(--a4); font-size:12px; font-weight:600; cursor:pointer; padding:0; text-align:left;">
-            💡 Ver consejo
+        ${consejoTexto ? `
+        <div style="margin-bottom:12px;">
+          <button 
+            id="btn-consejo-${d.id}"
+            aria-expanded="${consejoAbierto ? 'true' : 'false'}"
+            aria-controls="consejo-${d.id}"
+            onclick="
+              const c = document.getElementById('consejo-${d.id}');
+              const btn = document.getElementById('btn-consejo-${d.id}');
+              const abierto = c.style.display === 'block';
+              c.style.display = abierto ? 'none' : 'block';
+              btn.setAttribute('aria-expanded', abierto ? 'false' : 'true');
+              btn.querySelector('.consejo-txt').textContent = abierto ? '💡 Ver consejo' : '💡 Ocultar consejo';
+            "
+            style="background:none; border:none; color:var(--a4); font-size:12px; font-weight:600; cursor:pointer; padding:0; text-align:left; display:flex; align-items:center; gap:6px;">
+            <span class="consejo-txt">${consejoAbierto ? '💡 Ocultar consejo' : '💡 Ver consejo'}</span>
           </button>
-          <div style="display:none; width:100%; padding:10px 12px; background:rgba(59,158,255,.05); border:1px solid rgba(59,158,255,.15); border-radius:8px; font-size:12px; color:var(--t2); line-height:1.5; margin-bottom:4px;">
-            ${consejo}
-          </div>` : '<div></div>'}
-
-          <!-- Botones -->
-          <div style="display:flex; gap:8px; align-items:center; margin-left:auto;">
-            <button class="btn bg bsm" style="padding:6px 14px; font-size:12px;" onclick="abrirEditarDeuda(${d.id})">✏️ Editar</button>
-            <button 
-              style="background:rgba(255,68,68,.06); border:1px solid rgba(255,68,68,.2); color:var(--dan); padding:6px 14px; font-size:11px; font-weight:600; border-radius:6px; cursor:pointer; transition:all .2s; display:flex; align-items:center; gap:4px;"
-              onmouseover="this.style.background='rgba(255,68,68,.14)'; this.style.borderColor='rgba(255,68,68,.4)';"
-              onmouseout="this.style.background='rgba(255,68,68,.06)'; this.style.borderColor='rgba(255,68,68,.2)';"
-              onclick="delDeu(${d.id})">
-              🗑️ Borrar
-            </button>
-            <button class="btn bp" style="padding:10px 20px; font-size:14px; font-weight:700; border-radius:8px;" onclick="abrirPagarCuota(${d.id})">
-              Pagar Cuota →
-            </button>
+          <div id="consejo-${d.id}" style="display:${consejoAbierto ? 'block' : 'none'}; margin-top:8px; padding:12px; background:var(--s2); border:1px solid var(--b2); border-left:3px solid var(--a4); border-radius:8px; font-size:12px; color:var(--t2); line-height:1.6;">
+            ${consejoTexto}
+            ${consejoLey ? `<div style="margin-top:8px;"><span style="display:inline-flex; align-items:center; gap:4px; background:var(--s3); border:1px solid var(--b2); border-radius:6px; padding:3px 8px; font-size:10px; font-weight:700; color:var(--t3); font-family:var(--fm);">⚖️ ${consejoLey}</span></div>` : ''}
           </div>
+        </div>` : ''}
+
+        <div class="deu-card-footer">
+          <button class="btn bg bsm" onclick="abrirEditarDeuda(${d.id})" aria-label="Editar deuda ${he(d.nombre)}">✏️ Editar</button>
+          <button class="btn-eliminar-deu" onclick="delDeu(${d.id})" aria-label="Eliminar deuda ${he(d.nombre)}">🗑️ Eliminar</button>
+          <button class="btn bp btn-pagar-cuota" onclick="abrirPagarCuota(${d.id})" aria-label="Pagar cuota de ${he(d.nombre)}">
+            Pagar Cuota →
+          </button>
         </div>
       </div>
 
@@ -1240,78 +1299,166 @@ async function guardarPago(){const de=document.getElementById('ag-de').value;con
 
 function renderPagos() {
   const now = new Date();
-  now.setHours(0, 0, 0, 0); 
-  
+  now.setHours(0, 0, 0, 0);
+
   const up = S.pagosAgendados
     .filter(p => !p.pagado)
     .sort((a, b) => a.fecha.localeCompare(b.fecha));
 
   const totalLiquidez = up.reduce((sum, p) => sum + p.monto, 0);
 
-  const row = (p, bt) => {
-    const d = new Date(p.fecha + 'T12:00:00');
-    const opts = { month: 'short', day: 'numeric' };
-    const fechaFormateada = d.toLocaleDateString('es-CO', opts);
+  // ── MÉTRICAS ──
+  const prox7 = up.filter(p => {
+    const d = new Date(p.fecha + 'T12:00:00'); d.setHours(0,0,0,0);
+    const dias = Math.ceil((d - now) / 86400000);
+    return dias >= 0 && dias <= 7;
+  });
+  const vencidos = up.filter(p => {
+    const d = new Date(p.fecha + 'T12:00:00'); d.setHours(0,0,0,0);
+    return d < now;
+  });
 
-    const dTime = new Date(d);
-    dTime.setHours(0, 0, 0, 0);
-    const dias = Math.ceil((dTime - now) / 86400000);
-    
-    let textoDias = ''; let colorFecha = 'var(--t3)'; let colorMonto = 'var(--a2)'; 
-    // Por defecto, un borde muy sutil
-    let styleAlerta = 'border-left:4px solid transparent;'; 
+  setEl('ag-tot-monto', f(totalLiquidez));
+  setEl('ag-prox7', f(prox7.reduce((s, p) => s + p.monto, 0)));
+  setEl('ag-prox7-count', `${prox7.length} pago${prox7.length !== 1 ? 's' : ''}`);
 
-    if (dias < 0) {
-      textoDias = `⚠️ Vencido hace ${Math.abs(dias)} día(s)`;
-      colorFecha = 'var(--dan)'; colorMonto = 'var(--dan)';
-      styleAlerta = 'background:rgba(255,68,68,0.05); border-left:4px solid var(--dan);'; 
-    } else if (dias === 0) { 
-      textoDias = 'Hoy'; colorFecha = 'var(--a1)';
-      // NUEVO: Destacar el día de HOY con borde verde y fondo sutil
-      styleAlerta = 'background:rgba(0,220,130,0.05); border-left:4px solid var(--a1);';
-    } else if (dias === 1) { 
-      textoDias = 'Mañana'; colorFecha = 'var(--a3)';
-    } else { 
-      textoDias = `En ${dias} días`; 
+  const vencEl = document.getElementById('ag-vencidos');
+  const vencMsg = document.getElementById('ag-vencidos-msg');
+  if (vencEl) { vencEl.textContent = vencidos.length; vencEl.style.color = vencidos.length > 0 ? 'var(--dan)' : 'var(--a1)'; }
+  if (vencMsg) { vencMsg.textContent = vencidos.length > 0 ? `requieren atención urgente` : 'sin pagos vencidos ✅'; vencMsg.style.color = vencidos.length > 0 ? 'var(--dan)' : 'var(--t3)'; }
+
+  // ── AVISOS INTELIGENTES ──
+  const avisosEl = document.getElementById('ag-avisos');
+  if (avisosEl) {
+    const avisos = [];
+    if (vencidos.length > 0) {
+      avisos.push(`
+        <div style="display:flex; align-items:flex-start; gap:12px; padding:14px 24px; border-bottom:1px solid var(--b1); background:rgba(255,68,68,.03);">
+          <span style="font-size:20px; flex-shrink:0;">🚨</span>
+          <div style="flex:1;">
+            <div style="font-weight:700; font-size:12px; color:var(--dan); margin-bottom:3px;">Tienes ${vencidos.length} pago${vencidos.length > 1 ? 's' : ''} vencido${vencidos.length > 1 ? 's' : ''}</div>
+            <div style="font-size:11px; color:var(--t3); line-height:1.6;"><strong style="color:var(--t2);">${vencidos.map(p => he(p.desc)).join(', ')}</strong> ya pasaron su fecha límite. Págalos lo antes posible para no perder el control de tu liquidez.</div>
+          </div>
+        </div>`);
     }
-
-    let pill = '';
-    if (p.repetir === 'mensual') pill = '<span class="pill pb" style="font-size:9px; padding:2px 6px; margin-left:6px;">Mensual</span>';
-    else if (p.repetir === 'quincenal') pill = '<span class="pill py" style="font-size:9px; padding:2px 6px; margin-left:6px;">Quincenal</span>';
-    else pill = '<span class="pill pg" style="font-size:9px; padding:2px 6px; margin-left:6px;">Único</span>';
-
-    let cIcono = '🏦', cNom = 'Banco General';
-    if (p.fondo === 'efectivo') {
-      cIcono = '💵'; cNom = 'Efectivo';
-    } else if (p.fondo && p.fondo.startsWith('cuenta_')) {
-      const cId = +p.fondo.split('_')[1];
-      const c = S.cuentas.find(x => x.id === cId);
-      if (c) { cIcono = c.icono; cNom = c.nombre; }
+    if (prox7.length > 0 && vencidos.length === 0) {
+      avisos.push(`
+        <div style="display:flex; align-items:flex-start; gap:12px; padding:14px 24px; border-bottom:1px solid var(--b1); background:rgba(255,214,10,.03);">
+          <span style="font-size:20px; flex-shrink:0;">📆</span>
+          <div style="flex:1;">
+            <div style="font-weight:700; font-size:12px; color:var(--a2); margin-bottom:3px;">Tienes ${prox7.length} pago${prox7.length > 1 ? 's' : ''} en los próximos 7 días</div>
+            <div style="font-size:11px; color:var(--t3); line-height:1.6;">Asegúrate de tener <strong style="color:var(--t2);">${f(prox7.reduce((s,p)=>s+p.monto,0))}</strong> disponibles esta semana para cubrirlos sin problema.</div>
+          </div>
+        </div>`);
     }
-    let fondoPill = `${cIcono} ${he(cNom)}`;
+    if (up.length === 0) {
+      avisos.push(`
+        <div style="display:flex; align-items:flex-start; gap:12px; padding:14px 24px; background:rgba(0,220,130,.03);">
+          <span style="font-size:20px; flex-shrink:0;">🌟</span>
+          <div style="flex:1;">
+            <div style="font-weight:700; font-size:12px; color:var(--a1); margin-bottom:3px;">Sin pagos pendientes</div>
+            <div style="font-size:11px; color:var(--t3); line-height:1.6;">Todo al día. Agenda tus próximos compromisos para no olvidarlos cuando lleguen.</div>
+          </div>
+        </div>`);
+    }
+    avisosEl.innerHTML = avisos.join('');
+  }
 
-    return `<div class="prow" style="display:flex; align-items:center; padding:10px; border-bottom:1px solid var(--b1); ${styleAlerta}">
-      <div style="font-size:12px; color:${colorFecha}; min-width:65px; text-align:center; text-transform:capitalize; font-weight:700;">${fechaFormateada}</div>
-      <div style="flex:1;">
-        <div style="font-size:13px; font-weight:600; display:flex; align-items:center;">${he(p.desc)} ${pill}</div>
-        <div style="font-size:10px; color:var(--t3); margin-top:4px;">Se descontará de: <strong style="color:var(--t2);">${fondoPill}</strong></div>
-        <div class="tm" style="color:${dias < 0 ? 'var(--dan)' : 'var(--t2)'}; font-size:11px; margin-top:2px; font-weight:${dias < 0 ? '700' : 'normal'};">${textoDias}</div>
-      </div>
-      <div class="mono" style="color:${colorMonto}; font-weight:700; font-size:14px; margin-right:12px;">${f(p.monto)}</div>
-      ${bt ? `<div style="display:flex; gap:6px;"><button class="btn bp bsm" onclick="marcarPagado(${p.id})" title="Marcar pagado" style="padding:4px 8px;">✓</button><button class="btn bd bsm" onclick="delPago(${p.id})" title="Eliminar" style="padding:4px 8px;">×</button></div>` : ''}
-    </div>`;
+  // ── HELPER DE FONDO ──
+  const getFondo = (fondo) => {
+    if (fondo === 'efectivo') return { icon: '💵', name: 'Efectivo' };
+    if (fondo && fondo.startsWith('cuenta_')) {
+      const c = S.cuentas.find(x => x.id === +fondo.split('_')[1]);
+      if (c) return { icon: c.icono, name: c.nombre };
+    }
+    return { icon: '🏦', name: 'Banco' };
   };
 
+  // ── CARDS MODERNAS ──
   let htmlLista = '';
   if (up.length > 0) {
-    htmlLista += `<div style="display:flex; justify-content:space-between; align-items:center; background:var(--s2); padding:12px; border-radius:8px; margin-bottom:10px; border:1px solid var(--b2);"><div style="font-size:12px; color:var(--t2); font-weight:600;">💰 Total pendiente por pagar:</div><div style="font-size:18px; color:var(--a1); font-family:var(--fm); font-weight:700;">${f(totalLiquidez)}</div></div>`;
-    htmlLista += up.map(p => row(p, true)).join('');
+    htmlLista = up.map(p => {
+      const dObj = new Date(p.fecha + 'T12:00:00'); dObj.setHours(0,0,0,0);
+      const dias = Math.ceil((dObj - now) / 86400000);
+      const fechaFmt = new Date(p.fecha + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'short', month: 'short', day: 'numeric' });
+      const fondo = getFondo(p.fondo);
+
+      let colorEstado = 'var(--a2)', textoEstado = `En ${dias} días`, borderLeft = 'transparent', bgCard = '';
+      if (dias < 0)       { colorEstado = 'var(--dan)'; textoEstado = `Vencido hace ${Math.abs(dias)} día${Math.abs(dias)>1?'s':''}`;  borderLeft = 'var(--dan)'; bgCard = 'background:rgba(255,68,68,.02);'; }
+      else if (dias === 0) { colorEstado = 'var(--a1)';  textoEstado = '¡Hoy!';       borderLeft = 'var(--a1)';  bgCard = 'background:rgba(0,220,130,.02);'; }
+      else if (dias === 1) { colorEstado = 'var(--a3)';  textoEstado = 'Mañana';      borderLeft = 'var(--a3)'; }
+      else if (dias <= 7)  { colorEstado = 'var(--a2)';  textoEstado = `En ${dias} días`; }
+
+      const frecBadge = p.repetir === 'mensual'
+        ? '<span class="pill pb" style="font-size:9px;">↻ Mensual</span>'
+        : p.repetir === 'quincenal'
+        ? '<span class="pill py" style="font-size:9px;">↻ Quincenal</span>'
+        : '<span class="pill pg" style="font-size:9px;">✦ Único</span>';
+
+      return `
+      <article style="background:var(--s1); border:1px solid var(--b1); border-left:4px solid ${borderLeft}; border-radius:16px; margin-bottom:12px; overflow:hidden; ${bgCard} transition:transform .2s, box-shadow .2s;"
+        onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'"
+        onmouseout="this.style.transform='';this.style.boxShadow=''">
+
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; padding:16px 20px 14px; border-bottom:1px solid var(--b1); flex-wrap:wrap; gap:8px;">
+          <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
+            <div style="width:40px; height:40px; border-radius:10px; background:var(--s2); border:1px solid var(--b2); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;" aria-hidden="true">📅</div>
+            <div style="min-width:0;">
+              <div style="font-weight:800; font-size:15px; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${he(p.desc)}</div>
+              <div style="margin-top:5px;">${frecBadge}</div>
+            </div>
+          </div>
+          <div style="text-align:right; flex-shrink:0;">
+            <div style="font-family:var(--fm); font-size:26px; font-weight:800; color:${colorEstado}; letter-spacing:-1px; line-height:1;">${f(p.monto)}</div>
+            <div style="font-size:10px; color:var(--t3); margin-top:5px; text-transform:capitalize;">${fechaFmt}</div>
+          </div>
+        </div>
+
+        <div style="padding:12px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:18px;">${fondo.icon}</span>
+            <div>
+              <div style="font-size:10px; color:var(--t3); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Sale de</div>
+              <div style="font-size:12px; font-weight:600; color:var(--t2);">${he(fondo.name)}</div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <div style="width:8px; height:8px; border-radius:50%; background:${colorEstado}; flex-shrink:0;"></div>
+            <span style="font-size:12px; font-weight:700; color:${colorEstado};">${textoEstado}</span>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn bp bsm" onclick="marcarPagado(${p.id})" style="padding:8px 14px;" aria-label="Marcar como pagado">✓ Pagar</button>
+            <button class="btn bd bsm" onclick="delPago(${p.id})" style="padding:8px 10px;" aria-label="Eliminar pago">×</button>
+          </div>
+        </div>
+
+      </article>`;
+    }).join('');
   } else {
-    htmlLista = '<div class="emp" style="padding:20px; text-align:center;">Sin pagos agendados pendientes</div>';
+    htmlLista = `
+      <div style="text-align:center; padding:48px 20px; background:var(--s1); border-radius:16px; border:1px dashed rgba(0,220,130,.3); margin-top:4px;">
+        <div style="font-size:56px; margin-bottom:14px;">🗓️</div>
+        <div style="font-weight:800; font-size:18px; color:var(--t1); margin-bottom:8px;">Sin pagos pendientes</div>
+        <div style="color:var(--t3); font-size:13px; max-width:280px; margin:0 auto; line-height:1.6;">Agenda tus próximos compromisos para llevar el control de tu liquidez semana a semana.</div>
+      </div>`;
   }
 
   setHtml('pa-lst', htmlLista);
-  setHtml('d-prox', up.length ? up.slice(0, 4).map(p => row(p, false)).join('') : '<div class="emp">Sin pagos próximos</div>');
+
+  // ── PREVIEW DEL DASHBOARD (filas simples) ──
+  const rowDash = (p) => {
+    const dObj = new Date(p.fecha + 'T12:00:00'); dObj.setHours(0,0,0,0);
+    const dias = Math.ceil((dObj - now) / 86400000);
+    const col = dias < 0 ? 'var(--dan)' : dias === 0 ? 'var(--a1)' : dias <= 3 ? 'var(--a3)' : 'var(--t3)';
+    const fechaFmt = new Date(p.fecha + 'T12:00:00').toLocaleDateString('es-CO', { month: 'short', day: 'numeric' });
+    return `<div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--b1);">
+      <div style="font-size:11px; color:${col}; min-width:55px; font-weight:700; text-transform:capitalize;">${fechaFmt}</div>
+      <div style="flex:1; font-size:12px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${he(p.desc)}</div>
+      <div style="font-family:var(--fm); font-weight:700; font-size:13px; color:var(--a2); flex-shrink:0;">${f(p.monto)}</div>
+    </div>`;
+  };
+
+  setHtml('d-prox', up.length ? up.slice(0, 4).map(p => rowDash(p)).join('') : '<div class="emp">Sin pagos próximos</div>');
 
   if (typeof renderCal === 'function') renderCal();
 }
@@ -1673,7 +1820,17 @@ window.editEfectivoDash = async function() {
 
 function calcPrima(){const m=+document.getElementById('prm-mo').value||0;if(!m)return;setHtml('prm-res',`<div style="margin-top:14px;padding:14px;background:var(--s2);border-radius:var(--r2)"><div class="tm">Sugerencia (30/40/30)</div><div class="fb"><span>💳 Deudas</span><span class="mono">${f(m*0.3)}</span></div><div class="fb"><span>🛡️ Ahorro</span><span class="mono">${f(m*0.4)}</span></div><div class="fb"><span>🎉 Gustos</span><span class="mono">${f(m*0.3)}</span></div></div>`);}
 
-function guardarPrima(){const m=+document.getElementById('prm-mo').value||0;if(!m)return;S.ingreso+=m;S.gastos.unshift({id:Date.now(),desc:'🎉 Prima/Bono',monto:m,montoTotal:m,cat:'otro',tipo:'ahorro',fondo:'banco',hormiga:false,cuatroXMil:false,fecha:hoy(),metaId:'',autoFijo:false});refF('banco',m);closeM('m-prima');save();renderAll();}
+function guardarPrima() {
+    const m = +document.getElementById('prm-mo').value || 0;
+    if(!m) return;
+    const fo = document.getElementById('prm-fo') ? document.getElementById('prm-fo').value : 'banco';
+    S.ingreso += m;
+    S.gastos.unshift({ id: Date.now(), desc: '🎉 Prima/Bono', monto: m, montoTotal: m, cat: 'otro', tipo: 'ahorro', fondo: fo, hormiga: false, cuatroXMil: false, fecha: hoy(), metaId: '', autoFijo: false });
+    refF(fo, m);
+    closeM('m-prima');
+    save();
+    renderAll();
+}
 // =======================================================
 
 
@@ -2051,11 +2208,30 @@ function registrarAbonoFondo() {
   closeM('m-fondo-emergencia');
   showAlert('¡Dinero blindado con éxito en tu Fondo de Emergencia! 🛡️', 'Fondo Actualizado');
 }
-setTimeout(actualizarVistaFondo, 500);
 
 // ─── 13. HELPERS Y MODALES ───
-function openM(id){document.getElementById(id).classList.add('open');}
-function closeM(id){document.getElementById(id).classList.remove('open');}
+let _lastFocused = null;
+
+function openM(id) {
+  _lastFocused = document.activeElement;
+  const modal = document.getElementById(id);
+  if (!modal) return;
+  modal.classList.add('open');
+  requestAnimationFrame(() => {
+    const focusable = modal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (focusable) focusable.focus();
+  });
+}
+
+function closeM(id) {
+  const modal = document.getElementById(id);
+  if (!modal) return;
+  modal.classList.remove('open');
+  if (_lastFocused && typeof _lastFocused.focus === 'function') {
+    _lastFocused.focus();
+    _lastFocused = null;
+  }
+}
 function sr(msg){ const el = document.getElementById('sr-announcer'); if(!el) return; el.textContent = ''; requestAnimationFrame(() => { el.textContent = msg; }); }
 function f(n){return'$'+Math.round(n||0).toLocaleString('es-CO');}
 function hoy(){return new Date().toISOString().split('T')[0];}
@@ -2092,72 +2268,104 @@ function showPrompt(msg,title='Editar',valorInicial=''){return new Promise(r=>{_
 function toggleSidebar(){const sb=document.getElementById('sidebar');const ex=sb.classList.toggle('expanded');document.body.classList.toggle('sb-expanded',ex);localStorage.setItem('sb_expanded',ex);}
 
 function actualizarListasFondos() {
-  // Construir opciones disponibles
-  const opcionesBase = [
-    { value: 'efectivo', icon: '💵', nombre: 'Efectivo', saldo: S.saldos.efectivo }
-  ];
-  if (S.cuentas && S.cuentas.length > 0) {
-    S.cuentas.forEach(c => opcionesBase.push({ value: `cuenta_${c.id}`, icon: c.icono, nombre: c.nombre, saldo: c.saldo }));
-  } else {
-    opcionesBase.push({ value: 'banco', icon: '🏦', nombre: 'Banco (General)', saldo: S.saldos.banco });
-  }
-
-  const selectores = ['g-fo','gf-fo','oa-fo','ag-fo','inv-fo','prm-fo','fe-fo','pgc-fo','mf-fo','cp-fo','eg-fo'];
+  // ── 1. Selectores nativos (<select>) ──
+  const selectores = ['gf-fo', 'oa-fo', 'ag-fo', 'inv-fo', 'prm-fo', 'fe-fo', 'mf-fo', 'cp-fo'];
 
   selectores.forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const valorActual = sel.value;
+    let opciones = `<option value="efectivo">💵 Efectivo (Disponible: ${f(S.saldos.efectivo)})</option>`;
+    if (S.cuentas && S.cuentas.length > 0) {
+      opciones += S.cuentas.map(c => `<option value="cuenta_${c.id}">${c.icono} ${he(c.nombre)} (Disponible: ${f(c.saldo)})</option>`).join('');
+    } else {
+      opciones += `<option value="banco">🏦 Banco (General) (Disponible: ${f(S.saldos.banco)})</option>`;
+    }
+    if (id === 'inv-fo') opciones = '<option value="">No descontar (solo registrar)</option>' + opciones;
+    sel.innerHTML = opciones;
+    if (valorActual && sel.querySelector(`option[value="${valorActual}"]`)) sel.value = valorActual;
+  });
+
+  // ── 2. Selectores personalizados (fund-select) ──
+  const fondosDisponibles = () => {
+    const lista = [{ value: 'efectivo', icon: '💵', nombre: 'Efectivo', tipo: 'Bolsillo personal', saldo: S.saldos.efectivo }];
+    if (S.cuentas && S.cuentas.length > 0) {
+      S.cuentas.forEach(c => lista.push({ value: `cuenta_${c.id}`, icon: c.icono, nombre: he(c.nombre), tipo: 'Entidad bancaria', saldo: c.saldo }));
+    } else {
+      lista.push({ value: 'banco', icon: '🏦', nombre: 'Banco (General)', tipo: 'Fondo predeterminado', saldo: S.saldos.banco });
+    }
+    return lista;
+  };
+
+  ['g-fo', 'eg-fo', 'pgc-fo'].forEach(id => {
     const wrap = document.getElementById(id + '-wrap');
-    if (!wrap) return;
-
     const hidden = document.getElementById(id);
-    const valorActual = hidden ? hidden.value : '';
-    const opciones = id === 'inv-fo'
-      ? [{ value: '', icon: '➖', nombre: 'No descontar (solo registrar)', saldo: null }, ...opcionesBase]
-      : opcionesBase;
+    if (!wrap || !hidden) return;
+    const optsEl = wrap.querySelector('.fund-sel-opts');
+    if (!optsEl) return;
 
-    const opSel = opciones.find(o => o.value === valorActual) || opciones[0];
+    const fondos = fondosDisponibles();
+    optsEl.innerHTML = fondos.map(fo => `
+      <div class="fund-sel-opt" onclick="selFundOpt('${id}','${fo.value}','${fo.icon}','${fo.nombre}',${fo.saldo})">
+        <span class="fund-sel-opt-icon">${fo.icon}</span>
+        <div class="fund-sel-opt-info">
+          <div class="fund-sel-opt-name">${fo.nombre}</div>
+          <div class="fund-sel-opt-bal">${f(fo.saldo)}</div>
+        </div>
+      </div>`).join('');
 
-    // Actualizar trigger
+    const actual = fondos.find(fo => fo.value === hidden.value) || fondos[0];
+    if (!hidden.value) hidden.value = actual.value;
     const trigger = wrap.querySelector('.fund-sel-trigger');
     if (trigger) {
-      trigger.querySelector('.fund-sel-icon').textContent = opSel.icon;
-      trigger.querySelector('.fund-sel-name').textContent = opSel.nombre;
-      trigger.querySelector('.fund-sel-bal').textContent = opSel.saldo !== null && opSel.saldo !== undefined ? `Disponible: ${f(opSel.saldo)}` : 'Solo registro';
+      trigger.querySelector('.fund-sel-icon').textContent = actual.icon;
+      trigger.querySelector('.fund-sel-name').textContent = actual.nombre;
+      trigger.querySelector('.fund-sel-bal').textContent = `Disponible: ${f(actual.saldo)}`;
     }
-
-    // Actualizar opciones del menú
-    const opts = wrap.querySelector('.fund-sel-opts');
-    if (opts) {
-      opts.innerHTML = opciones.map(o => {
-        const esSel = o.value === (hidden ? hidden.value : '');
-        const balTexto = o.saldo !== null && o.saldo !== undefined ? `Disponible: ${f(o.saldo)}` : 'Solo registro';
-        return `<div class="fund-sel-opt${esSel ? ' fso-sel' : ''}" onclick="selFundOpt('${id}','${o.value}','${o.icon.replace(/'/g,"\\'")}','${o.nombre.replace(/'/g,"\\'")}',${o.saldo !== null && o.saldo !== undefined ? o.saldo : 'null'})">
-          <span class="fund-sel-opt-icon">${o.icon}</span>
-          <div class="fund-sel-opt-info">
-            <div class="fund-sel-opt-name">${he(o.nombre)}</div>
-            <div class="fund-sel-opt-bal">${balTexto}</div>
-          </div>
-          ${esSel ? '<span class="fund-sel-check">✓</span>' : ''}
-        </div>`;
-      }).join('');
-    }
-
-    // Sincronizar hidden input al primer valor si está vacío
-    if (hidden && !hidden.value && opciones.length > 0) hidden.value = opciones[0].value;
   });
 }
 
 function toggleFundSelect(id) {
   const wrap = document.getElementById(id + '-wrap');
   if (!wrap) return;
+
   // Cerrar todos los demás abiertos
   document.querySelectorAll('.fund-sel-opts.open').forEach(el => {
     if (el !== wrap.querySelector('.fund-sel-opts')) {
       el.classList.remove('open');
       el.closest('.fund-select')?.querySelector('.fund-sel-trigger')?.classList.remove('open');
+      // Limpiar posicionamiento fixed si estaba activo
+      el.style.cssText = '';
     }
   });
-  wrap.querySelector('.fund-sel-trigger')?.classList.toggle('open');
-  wrap.querySelector('.fund-sel-opts')?.classList.toggle('open');
+
+  const trigger = wrap.querySelector('.fund-sel-trigger');
+  const opts = wrap.querySelector('.fund-sel-opts');
+  if (!trigger || !opts) return;
+
+  const yaEstabaAbierto = opts.classList.contains('open');
+  trigger.classList.toggle('open');
+  opts.classList.toggle('open');
+
+  if (!yaEstabaAbierto && opts.classList.contains('open')) {
+    // Si está dentro de un modal, usar position:fixed para escapar del overflow
+    if (wrap.closest('.modal')) {
+      const rect = trigger.getBoundingClientRect();
+      const alturaOpts = 280;
+      const espacioAbajo = window.innerHeight - rect.bottom;
+      const abrirArriba = espacioAbajo < alturaOpts && rect.top > alturaOpts;
+
+      opts.style.position = 'fixed';
+      opts.style.left = rect.left + 'px';
+      opts.style.width = rect.width + 'px';
+      opts.style.zIndex = '600';
+      opts.style.top = abrirArriba
+        ? (rect.top - alturaOpts) + 'px'
+        : rect.bottom + 'px';
+    }
+  } else if (yaEstabaAbierto) {
+    opts.style.cssText = '';
+  }
 }
 
 function selFundOpt(id, value, icon, nombre, saldo) {
@@ -2180,13 +2388,19 @@ function selFundOpt(id, value, icon, nombre, saldo) {
   if (optSel) { optSel.classList.add('fso-sel'); optSel.insertAdjacentHTML('beforeend','<span class="fund-sel-check">✓</span>'); }
 }
 
-// Cerrar al hacer clic fuera
+// Cerrar selectores de fondos y modales al hacer clic fuera
 document.addEventListener('click', e => {
+  // 1. Cierra el selector de fondos si el clic fue fuera de él
   if (!e.target.closest('.fund-select')) {
     document.querySelectorAll('.fund-sel-opts.open').forEach(el => {
       el.classList.remove('open');
       el.closest('.fund-select')?.querySelector('.fund-sel-trigger')?.classList.remove('open');
     });
+  }
+
+  // 2. Cierra modales al hacer clic en el overlay (fondo oscuro)
+  if (e.target.classList.contains('modal-ov') && e.target.id !== 'cdlg-ov') {
+    closeM(e.target.id);
   }
 });
 
@@ -2249,13 +2463,188 @@ function renderStats() {
   setHtml('stat-insights', insights.length ? insights.join('') : '<div class="emp" style="padding:10px;">Faltan datos para pronósticos.</div>');
 }
 
-window.addEventListener('click', (e) => {
-  if (e.target.classList.contains('modal-ov')) {
-    if (e.target.id !== 'cdlg-ov') {
-      e.target.classList.remove('open');
-    }
+// ── DAY PICKER ──
+const _DP_COMUNES = [];
+
+function toggleDayPicker(id) {
+  const wrap = document.getElementById('dp-' + id);
+  const hidden = document.getElementById(id);
+  if (!wrap || !hidden) return;
+  const trigger = wrap.querySelector('.day-pick-trigger');
+  const grid = wrap.querySelector('.day-pick-grid');
+  if (!trigger || !grid) return;
+
+  const yaAbierto = grid.classList.contains('open');
+
+  // Cerrar todos los day pickers abiertos
+  document.querySelectorAll('.day-pick-grid.open').forEach(el => {
+    el.classList.remove('open');
+    el.closest('.day-picker')?.querySelector('.day-pick-trigger')?.classList.remove('open');
+  });
+
+  if (yaAbierto) return;
+
+  // Generar el grid de días si está vacío
+  if (!grid.children.length) {
+    grid.innerHTML = `
+      <div class="day-pick-header">Día de pago mensual</div>
+      <div class="day-pick-days">
+        ${Array.from({length: 31}, (_, i) => i + 1).map(d => `
+          <button type="button" class="day-pick-btn${_DP_COMUNES.includes(d) ? ' common' : ''}"
+            data-day="${d}" onclick="selectDay('${id}',${d})">${d}</button>
+        `).join('')}
+      </div>`;
+  }
+
+  // Sincronizar el día ya seleccionado
+  const currentVal = +hidden.value;
+  if (currentVal) {
+    grid.querySelectorAll('.day-pick-btn').forEach(btn => {
+      btn.classList.toggle('selected', +btn.dataset.day === currentVal);
+    });
+    const valEl = trigger.querySelector('.day-pick-val');
+    if (valEl) valEl.textContent = `Día ${currentVal} de cada mes`;
+  }
+
+  trigger.classList.add('open');
+  grid.classList.add('open');
+
+  // Posicionar con fixed para escapar del overflow del modal
+  const rect = trigger.getBoundingClientRect();
+  const gridW = Math.max(268, rect.width);
+  let left = rect.left;
+  if (left + gridW > window.innerWidth - 10) left = window.innerWidth - gridW - 10;
+  const espacioAbajo = window.innerHeight - rect.bottom;
+
+  grid.style.position = 'fixed';
+  grid.style.width = gridW + 'px';
+  grid.style.left = left + 'px';
+  grid.style.zIndex = '600';
+  if (espacioAbajo < 220 && rect.top > 220) {
+    grid.style.top = 'auto';
+    grid.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
+  } else {
+    grid.style.top = (rect.bottom + 4) + 'px';
+    grid.style.bottom = 'auto';
+  }
+}
+
+function selectDay(id, day) {
+  const hidden = document.getElementById(id);
+  const wrap = document.getElementById('dp-' + id);
+  if (!hidden || !wrap) return;
+  hidden.value = day;
+  const valEl = wrap.querySelector('.day-pick-val');
+  if (valEl) valEl.textContent = `Día ${day} de cada mes`;
+  wrap.querySelectorAll('.day-pick-btn').forEach(btn => {
+    btn.classList.toggle('selected', +btn.dataset.day === day);
+  });
+  const grid = wrap.querySelector('.day-pick-grid');
+  const trigger = wrap.querySelector('.day-pick-trigger');
+  if (grid) grid.classList.remove('open');
+  if (trigger) trigger.classList.remove('open');
+}
+
+function setDayPicker(id, day) {
+  const hidden = document.getElementById(id);
+  const wrap = document.getElementById('dp-' + id);
+  if (!hidden) return;
+  hidden.value = day || '';
+  if (!wrap) return;
+  const valEl = wrap.querySelector('.day-pick-val');
+  if (valEl) valEl.textContent = day ? `Día ${day} de cada mes` : 'Selecciona el día';
+  wrap.querySelectorAll('.day-pick-btn').forEach(btn => {
+    btn.classList.toggle('selected', +btn.dataset.day === +day);
+  });
+}
+
+// Cerrar day picker al hacer clic fuera
+document.addEventListener('click', e => {
+  if (!e.target.closest('.day-picker')) {
+    document.querySelectorAll('.day-pick-grid.open').forEach(el => {
+      el.classList.remove('open');
+      el.closest('.day-picker')?.querySelector('.day-pick-trigger')?.classList.remove('open');
+    });
   }
 });
+
+// ── NUEVA LÓGICA PARA EL SELECTOR DE FONDOS PREMIUM (BottomSheet) ──
+
+function updCustomFundButton(selectorId) {
+    const customId = selectorId + '-custom';
+    const original = document.getElementById(selectorId);
+    const custom = document.getElementById(customId);
+    if (!original || !custom) return;
+
+    const val = original.value;
+    let icon = '💵', name = 'Efectivo', bal = f(S.saldos.efectivo);
+    let specialClass = '';
+
+    if (val && val.startsWith('cuenta_')) {
+        const cId = +val.replace('cuenta_', '');
+        const cuenta = S.cuentas.find(c => c.id === cId);
+        if (cuenta) { icon = cuenta.icono; name = he(cuenta.nombre); bal = f(cuenta.saldo); }
+    } else if (val === 'banco') {
+        icon = '🏦'; name = 'Banco (General)'; bal = f(S.saldos.banco);
+    } else if (val === 'efectivo') {
+        specialClass = 'fnd-sel-saldo-custom';
+    }
+
+    custom.innerHTML = `
+        <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:1.2rem;">${icon}</span>
+            <div style="display:flex; flex-direction:column; text-align:left;">
+                <span style="font-size:14px; font-weight:500; color:var(--t1);">${name}</span>
+                <span class="${specialClass}" style="font-size:12px; color:var(--t2); font-family:'DM Mono', monospace;">${bal}</span>
+            </div>
+        </div>
+        <span style="font-size:0.8rem; color:var(--t2);">▼</span>
+    `;
+}
+
+function openSelectorFondo(originSelectorId) {
+    const listado = document.getElementById('listado-fondos-selector');
+    if (!listado) return;
+    const specialClass = (originSelectorId === 'pgc-fo' || originSelectorId === 'mf-fo') ? 'fnd-sel-efectivo' : '';
+
+    let html = '';
+    // Efectivo
+    html += `
+        <div class="fnd-sel-card ${specialClass}" onclick="seleccionarFondo('${originSelectorId}', 'efectivo')">
+            <div class="fnd-sel-cont"><span class="fnd-sel-icon">💵</span><div class="fnd-sel-data"><span class="fnd-sel-name">Efectivo</span><span class="fnd-sel-type">Bolsillo personal</span></div></div>
+            <div class="fnd-sel-bal-cont"><span class="fnd-sel-bal-val">${f(S.saldos.efectivo)}</span><span class="fnd-sel-bal-label">DISPONIBLE</span></div>
+        </div>`;
+
+    // Cuentas de banco
+    if (S.cuentas && S.cuentas.length > 0) {
+        S.cuentas.forEach(c => {
+            html += `
+                <div class="fnd-sel-card" onclick="seleccionarFondo('${originSelectorId}', 'cuenta_${c.id}')">
+                    <div class="fnd-sel-cont"><span class="fnd-sel-icon">${c.icono}</span><div class="fnd-sel-data"><span class="fnd-sel-name">${he(c.nombre)}</span><span class="fnd-sel-type">Entidad bancaria</span></div></div>
+                    <div class="fnd-sel-bal-cont"><span class="fnd-sel-bal-val">${f(c.saldo)}</span><span class="fnd-sel-bal-label">DISPONIBLE</span></div>
+                </div>`;
+        });
+    } else {
+        html += `
+        <div class="fnd-sel-card" onclick="seleccionarFondo('${originSelectorId}', 'banco')">
+            <div class="fnd-sel-cont"><span class="fnd-sel-icon">🏦</span><div class="fnd-sel-data"><span class="fnd-sel-name">Banco (General)</span><span class="fnd-sel-type">Fondo predeterminado</span></div></div>
+            <div class="fnd-sel-bal-cont"><span class="fnd-sel-bal-val">${f(S.saldos.banco)}</span><span class="fnd-sel-bal-label">DISPONIBLE</span></div>
+        </div>`;
+    }
+
+    listado.innerHTML = html;
+    openM('m-selector-fondo');
+}
+
+function seleccionarFondo(originSelectorId, fondoId) {
+    const original = document.getElementById(originSelectorId);
+    if (original) {
+        original.value = fondoId;
+        original.dispatchEvent(new Event('change'));
+    }
+    updCustomFundButton(originSelectorId);
+    closeM('m-selector-fondo');
+}
 
 // =========================================================
 // 14. EXPOSICIÓN GLOBAL A WINDOW (HTML)
@@ -2271,4 +2660,5 @@ window.guardarPago=guardarPago; window.marcarPagado=marcarPagado; window.delPago
 window.toggleTipoObjetivo=toggleTipoObjetivo; window.openNuevoObjetivo=openNuevoObjetivo; window.guardarObjetivo=guardarObjetivo; window.abrirAccionObj=abrirAccionObj; window.ejecutarAccionObjetivo=ejecutarAccionObjetivo; window.delObjetivo=delObjetivo;
 window.toggleCalc=toggleCalc; window.cCDT=cCDT; window.cCre=cCre; window.cIC=cIC; window.cMeta=cMeta; window.cPila=cPila;
 window.exportarDatos=exportarDatos; window.importarDatos=importarDatos; window.cerrarQ=cerrarQ; window.guardarInversion=guardarInversion; window.openRendimiento=openRendimiento; window.guardarRendimiento=guardarRendimiento; window.delInversion=delInversion; window.calcPrima=calcPrima; window.guardarPrima=guardarPrima; window.guardarCuenta=guardarCuenta; window.delCuenta=delCuenta; window.editSaldoCuenta=editSaldoCuenta; window.editSaldoCuentaDash=editSaldoCuentaDash; window.exportarCSV=exportarCSV; window.descargarCSVDirecto=descargarCSVDirecto;
-window.calcularFondoEmergencia=calcularFondoEmergencia; window.actualizarVistaFondo=actualizarVistaFondo; window.registrarAbonoFondo=registrarAbonoFondo; window.actualizarListasFondos=actualizarListasFondos; window.toggleFundSelect=toggleFundSelect; window.selFundOpt=selFundOpt; window.renderCuentas=renderCuentas; window.renderDashCuentas=renderDashCuentas; window.renderStats=renderStats; window.cInf = cInf; window.cR72 = cR72; window.evaluarGastoEvento = evaluarGastoEvento; window.prevMonth = prevMonth; window.nextMonth = nextMonth; window.showDayDetails = showDayDetails; window.ejecutarPagoAgendado = ejecutarPagoAgendado;
+window.toggleDayPicker=toggleDayPicker; window.selectDay=selectDay; window.setDayPicker=setDayPicker;
+window.calcularFondoEmergencia=calcularFondoEmergencia; window.actualizarVistaFondo=actualizarVistaFondo; window.registrarAbonoFondo=registrarAbonoFondo; window.actualizarListasFondos=actualizarListasFondos; window.toggleFundSelect=toggleFundSelect; window.selFundOpt=selFundOpt; window.renderCuentas=renderCuentas; window.renderDashCuentas=renderDashCuentas; window.renderStats=renderStats; window.cInf = cInf; window.cR72 = cR72; window.evaluarGastoEvento = evaluarGastoEvento; window.prevMonth = prevMonth; window.nextMonth = nextMonth; window.showDayDetails = showDayDetails; window.ejecutarPagoAgendado = ejecutarPagoAgendado; window.updCustomFundButton = updCustomFundButton; window.openSelectorFondo = openSelectorFondo; window.seleccionarFondo = seleccionarFondo;
