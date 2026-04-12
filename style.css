@@ -31,7 +31,7 @@
   --b3: #2e4232;  /* Bordes al hacer hover (pasar el ratón) */
   
   /* Textos */
-  --t1: #ffffff;  /* Texto principal brillante */
+  --t1: #eef4f0;  /* Texto principal — off-white con tinte verde, reduce fatiga visual */
   --t2: #b3cbb8;  /* Texto secundario (titulillos) */
   --t3: #84a08d;  /* Texto apagado (Notas chiquitas) */
   
@@ -45,7 +45,7 @@
   --a7: #00e5cc;  /* Turquesa */
   
   /* Alias rápidos semánticos */
-  --ok: var(--a1); --war: var(--a2); --dan: #ff4444; --inf: var(--a4);
+  --ok: var(--a1); --war: var(--a2); --dan: #ff6060; --inf: var(--a4);
   
   /* Degradados mágicos para las tarjetas principales */
   --ga1: linear-gradient(135deg, #00dc8222, #00e5cc11);
@@ -62,6 +62,15 @@
   --r2: 12px; /* Curva mediana (tarjetas internas) */
   --r3: 16px; /* Curva grande (tarjetas principales) */
   --r4: 22px; /* Curva máxima (modales) */
+
+  /* Sombras */
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+
+  /* Colores para gráfico de estadísticas */
+  --stat-needs: #00bcd4;    /* Cyan vibrante (Necesidades) */
+  --stat-desires: #ff9800;  /* Naranja (Deseos) */
+  --stat-hormiga: #795548;  /* Marrón (Hormiga - Fuga) */
+  --stat-savings: #4caf50;  /* Verde (Ahorros) */
 }
 
 
@@ -466,8 +475,39 @@ tr:hover td { background: rgba(22,32,25,.6); }
   /* Convertimos el menú vertical en una barra horizontal en el piso (Bottom Bar) */
   #sidebar { width: 100%; height: 56px; flex-direction: row; top: auto; bottom: 0; border-right: none; border-top: 1px solid var(--b1); overflow-x: auto; }
   #sidebar.expanded { width: 100%; height: 56px; }
-  #sidebar nav { flex-direction: row; padding: 4px; overflow-x: auto; overflow-y: hidden; align-items: center; }
-  
+  #sidebar nav { flex-direction: row; padding: 0 4px; overflow-x: auto; overflow-y: hidden; align-items: stretch; gap: 0; }
+
+  /* Botones de la barra inferior — tamaño fijo y centrado perfecto */
+  #sidebar nav .nb {
+    width: 52px;
+    min-width: 52px;
+    height: 56px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0;
+    border: none;
+    border-bottom: 3px solid transparent;
+    border-left: none;
+  }
+  #sidebar nav .nb .ni {
+    font-size: 20px;
+    line-height: 1;
+    width: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  /* Estado activo en móvil: línea verde arriba en lugar de izquierda */
+  #sidebar nav .nb.active {
+    border-bottom: 3px solid var(--a1);
+    border-left: none;
+    color: var(--a1);
+    background: var(--s2);
+  }
+
   /* Escondemos elementos que estorban en el celular */
   .sb-logo, .sb-bottom { display: none; }
   .nb::after { display: none; }
@@ -512,7 +552,7 @@ tr:hover td { background: rgba(22,32,25,.6); }
 /* Si inyectas "light-theme" al body, estas variables destruyen y reemplazan a 
    las de arriba, cambiando todos los colores de la app al instante. */
 body.light-theme {
-  --bg: #f2f6f3; --s1: #ffffff; --s2: #eaf0ec; --s3: #dce8df;
+  --bg: #e8ede9; --s1: #ffffff; --s2: #eaf0ec; --s3: #dce8df;
   --b1: #c8d8cc; --b2: #b0c4b5; --b3: #90aa96;
   --t1: #0a130c; --t2: #2d4435; --t3: #4a6b53;
   --a1: #007a47; --a2: #7a5c00; --a3: #c43d10;
@@ -576,14 +616,6 @@ body.light-theme .insight-card { background: var(--s2); }
 /* =========================================================
    ESTILOS PREMIUM: PUNTAJE Y TORTA MODERNA
    ========================================================= */
-
-/* Colores Dinámicos Modernos para Diferenciación Total */
-:root {
-  --stat-needs: #00bcd4; /* Cyan vibrante (Necesidades) */
-  --stat-desires: #ff9800; /* Naranja (Deseos) */
-  --stat-hormiga: #795548; /* Marrón (Hormiga - Fuga) */
-  --stat-savings: #4caf50; /* Verde (Ahorros) */
-}
 
 /* Puntaje Financiero Modernizado */
 .fin-score-container {
@@ -729,7 +761,90 @@ body.light-theme .insight-card { background: var(--s2); }
   animation: deudaEntrada 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* ─── PIE DE TARJETA DE DEUDA (RESPONSIVE) ─── */
+.deu-card-footer {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.deu-card-footer .btn-pagar-cuota {
+  margin-left: auto;
+  white-space: nowrap;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 8px;
+}
+@media (max-width: 480px) {
+  .deu-card-footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .deu-card-footer .btn-pagar-cuota {
+    grid-column: span 2;
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ─── BOTÓN ELIMINAR DEUDA ─── */
+
+.btn-eliminar-deu {
+  background: transparent;
+  border: 1px solid rgba(255,96,96,.25);
+  color: var(--dan);
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .2s, border-color .2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+}
+.btn-eliminar-deu:hover {
+  background: rgba(255,96,96,.1);
+  border-color: rgba(255,96,96,.4);
+}
+
+/* ─── DAY PICKER ─── */
+
+.day-picker { position: relative; }
+.day-pick-trigger {
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+  background: var(--s2); border: 1.5px solid var(--b2); border-radius: 10px;
+  cursor: pointer; transition: all .2s; user-select: none;
+}
+.day-pick-trigger:hover, .day-pick-trigger.open { border-color: var(--a1); background: var(--s1); }
+.day-pick-icon { font-size: 18px; flex-shrink: 0; }
+.day-pick-info { flex: 1; min-width: 0; }
+.day-pick-val { font-size: 13px; font-weight: 600; color: var(--t1); }
+.day-pick-sub { font-size: 11px; color: var(--t3); margin-top: 1px; }
+.day-pick-arrow { color: var(--t3); font-size: 11px; transition: transform .2s; flex-shrink: 0; }
+.day-pick-trigger.open .day-pick-arrow { transform: rotate(180deg); }
+.day-pick-grid {
+  display: none; position: fixed; z-index: 600;
+  background: var(--s1); border: 1px solid var(--b2); border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.3); padding: 14px;
+}
+.day-pick-grid.open { display: block; }
+.day-pick-header { font-size: 10px; font-weight: 700; color: var(--t3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; text-align: center; }
+.day-pick-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.day-pick-btn {
+  width: 34px; height: 34px; border-radius: 8px; border: none;
+  background: var(--s2); color: var(--t2); font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all .15s; display: flex; align-items: center;
+  justify-content: center; font-family: var(--fm);
+}
+.day-pick-btn:hover { background: var(--b3); color: var(--t1); }
+.day-pick-btn.common { color: var(--t2); font-weight: 500; }
+.day-pick-btn.selected { background: var(--a1); color: #000; font-weight: 800; }
+
 /* ─── CUSTOM FUND SELECT ─── */
+
 .fund-select { position: relative; }
 .fund-sel-trigger {
   display: flex; align-items: center; gap: 10px;
