@@ -154,7 +154,3 @@ export function loadData() {
 export function save() { 
   storage.set('fco_v4', JSON.stringify(S)); 
 }
-
-// Exponemos las funciones al HTML por si se necesitan usar directamente
-window.loadData = loadData;
-window.save = save;
