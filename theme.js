@@ -24,6 +24,9 @@ export function applyTheme(theme) {
       if (ni) ni.textContent = isLight ? '🌙' : '☀️';
     }
   });
+  // Sincroniza el ícono del panel Más
+  const masIcon = document.getElementById('mas-theme-icon');
+  if (masIcon) masIcon.textContent = isLight ? '🌙' : '☀️';
   
   // Guardamos la preferencia en la memoria del navegador para la próxima vez que abra la app
   localStorage.setItem('fco_theme', theme);
