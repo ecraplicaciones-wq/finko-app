@@ -8,24 +8,56 @@ import { loadData, save } from './storage.js';
 import './ui.js';
 import './theme.js';
 
+// ─── CONSTANTES FINANCIERAS COLOMBIA ─────────────────────────────────────────
+// Fuentes: DIAN, MinTrabajo, Superfinanciera. Revisar anualmente.
+const SMMLV_2026        = 1_750_905;   // Decreto 0159 - MinTrabajo
+const UVT_2026          = 52_374;      // Resolución DIAN 000238 dic-2025
+const TOPE_DIAN_UVT     = 1_400;       // Art. 594 E.T. - umbral declaración renta
+const TOPE_DIAN         = TOPE_DIAN_UVT * UVT_2026; // $73.323.600
+const TASA_USURA_EA     = 24.36;       // Q1-2026 crédito consumo - Superfinanciera ⚠️ actualizar trimestral
+const GMF_TASA          = 0.004;       // 4x1000 = 0.4% - Art. 872 E.T.
+const GMF_EXENTO_UVT    = 350;         // Art. 879 E.T. - una cuenta exenta
+const GMF_EXENTO_MONTO  = GMF_EXENTO_UVT * UVT_2026; // $18.330.900
+const SALUD_INDEPEND    = 0.125;       // 12.5% - Art. 204 Ley 100/1993
+const PENSION_INDEPEND  = 0.16;        // 16%   - Art. 18 Ley 100/1993
+const RETEFUENTE_CDT    = 0.04;        // 4%    - Art. 395 E.T. + Decreto 2418/2013. Aplica también a CDAT cooperativas (Decreto 0572/2025)
+const RETEFUENTE_AHORRO = 0.07;        // 7%    - Art. 395 E.T. para cuentas de ahorro (con base mínima exenta)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Mapa de constantes inyectables en HTML via data-const="CLAVE"
+// Para actualizar un valor en toda la app: cambia solo la constante arriba.
+const CONST_MAP = {
+  'RETEFUENTE_CDT_PCT':    (RETEFUENTE_CDT * 100).toFixed(0) + '%',
+  'RETEFUENTE_AHORRO_PCT': (RETEFUENTE_AHORRO * 100).toFixed(0) + '%',
+  'GMF_EXENTO_MONTO':      '$' + Math.round(GMF_EXENTO_MONTO).toLocaleString('es-CO'),
+  'GMF_EXENTO_UVT':        GMF_EXENTO_UVT + ' UVT',
+  'TASA_USURA_EA':         TASA_USURA_EA + '% E.A.',
+  'TOPE_DIAN':             '$' + Math.round(TOPE_DIAN).toLocaleString('es-CO'),
+  'SMMLV_2026':            '$' + Math.round(SMMLV_2026).toLocaleString('es-CO'),
+  'UVT_2026':              '$' + Math.round(UVT_2026).toLocaleString('es-CO'),
+};
+
+// Rellena todos los elementos con data-const="CLAVE" en el HTML
+function inyectarConstantes() {
+  document.querySelectorAll('[data-const]').forEach(el => {
+    const key = el.getAttribute('data-const');
+    if (CONST_MAP[key] !== undefined) el.textContent = CONST_MAP[key];
+  });
+}
+
 const CATS = { alimentacion:'🍽️ Alimentación', transporte:'🚌 Transporte', vivienda:'🏠 Vivienda', servicios:'💡 Servicios', salud:'🏥 Salud', entretenimiento:'🎬 Entretenimiento', ropa:'👕 Ropa', tecnologia:'💻 Tecnología', hormiga:'🐜 Hormiga', deudas:'💳 Deudas', ahorro:'💰 Ahorro', otro:'📦 Otro' };
 const PCATS = { comida:'🍽️ Comida', hotel:'🏨 Hotel', transporte:'🚌 Transporte', fiesta:'🎉 Fiesta', compras:'🛍️ Compras', entradas:'🎟️ Entradas', otro:'📦 Otro' };
 const CCOLORS = { alimentacion:'#00dc82', transporte:'#3b9eff', vivienda:'#b44eff', servicios:'#ffd60a', salud:'#ff6b35', entretenimiento:'#ff4eb8', ropa:'#00e5cc', tecnologia:'#4eb8ff', hormiga:'#ff9944', deudas:'#ff4444', ahorro:'#00dc82', otro:'#666' };
-const NAVS = ['dash','quin','gast','fijo','objetivos','inve','deu','agen','stat','hist'];
+const NAVS = ['dash','quin','gast','objetivos','inve','deu','agen','stat'];
 
 // ─── 1. ARRANQUE SEGURO ───
 function initApp() {
   loadData();
   if(localStorage.getItem('sb_expanded') === 'true') { document.getElementById('sidebar')?.classList.add('expanded'); document.body.classList.add('sb-expanded'); }
-  if(localStorage.getItem('fco_theme') === 'light'){
-    document.body.classList.add('light-theme');
-    ['btn-theme', 'btn-theme-mobile'].forEach(id => {
-      const b = document.getElementById(id);
-      if(b){ const ni = b.querySelector('.ni'); if(ni) ni.textContent='🌙'; }
-    });
-  }
+  // Detecta preferencia del OS si es la primera visita, o carga la guardada
+  if(typeof getPreferredTheme === 'function') applyTheme(getPreferredTheme());
   
-  updateBadge(); populateSelectObjetivos(); renderAll(); calcScore();
+  inyectarConstantes(); updateBadge(); populateSelectObjetivos(); renderAll(); calcScore();
   
   // Precarga blindada de calculadoras (Si alguna no existe en el HTML, no crashea)
   cCDT(); cCre(); cIC(); cMeta(); cPila();
@@ -34,6 +66,11 @@ function initApp() {
   ['g-fe','ag-fe','obj-fe'].forEach(i => { const e=document.getElementById(i); if(e) e.valueAsDate=hoyD; });
   if(S.ingreso > 0){ const e = document.getElementById('q-pri'); if(e) e.value = S.ingreso; }
   updSaldo();
+
+  // Accesibilidad: aria-label en todos los botones de cierre de modales
+  document.querySelectorAll('.mclose').forEach(btn => {
+    if (!btn.getAttribute('aria-label')) btn.setAttribute('aria-label', 'Cerrar ventana');
+  });
 }
 
 let renderTimer = null;
@@ -41,17 +78,31 @@ let renderTimer = null;
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initApp);
 else initApp();
 
-function renderAll() {
-  // EFICIENCIA: Si el sistema pide repintar la pantalla varias veces seguidas, 
-  // cancelamos las anteriores y hacemos una sola repintada fluida.
+// Renderiza SOLO las secciones necesarias.
+// El Dashboard, saldos y cuentas SIEMPRE se actualizan (son el resumen global).
+// Llama renderSmart(['gastos', 'deudas']) en vez de renderAll() para operaciones cotidianas.
+function renderSmart(sections = []) {
   if (renderTimer) cancelAnimationFrame(renderTimer);
-  
   renderTimer = requestAnimationFrame(() => {
-    renderGastos(); updateDash(); renderObjetivos(); renderInversiones(); 
-    renderDeudas(); renderFijos(); renderPagos(); renderHistorial(); 
-    updSaldo(); renderStats(); renderCuentas(); renderDashCuentas();
+    updSaldo();
+    renderCuentas();
+    renderDashCuentas();
     actualizarVistaFondo();
+    updateDash();
+    if (sections.includes('gastos'))      renderGastos();
+    if (sections.includes('objetivos'))   renderObjetivos();
+    if (sections.includes('inversiones')) renderInversiones();
+    if (sections.includes('deudas'))      renderDeudas();
+    if (sections.includes('fijos'))       renderFijos();
+    if (sections.includes('pagos'))       renderPagos();
+    if (sections.includes('historial'))   renderHistorial();
+    if (sections.includes('stats'))       renderStats();
   });
+}
+
+// Renderiza TODO. Solo para arranque, importaciones y resets completos.
+function renderAll() {
+  renderSmart(['gastos','objetivos','inversiones','deudas','fijos','pagos','historial','stats']);
 }
 
 function updateBadge(){
@@ -61,22 +112,115 @@ function updateBadge(){
 }
 
 // ─── 2. NAVEGACIÓN Y QUINCENA ───
+const MAS_SECTIONS = ['quin', 'objetivos', 'inve', 'stat'];
+
+function toggleMas() {
+  const panel   = document.getElementById('mas-panel');
+  const overlay = document.getElementById('mas-overlay');
+  const btn     = document.getElementById('btn-mas');
+  if (!panel || !overlay) return;
+  const abierto = panel.classList.contains('open');
+  panel.classList.toggle('open', !abierto);
+  overlay.classList.toggle('open', !abierto);
+  if (btn) btn.setAttribute('aria-expanded', String(!abierto));
+}
+
+function closeMas() {
+  const panel   = document.getElementById('mas-panel');
+  const overlay = document.getElementById('mas-overlay');
+  const btn     = document.getElementById('btn-mas');
+  if (!panel) return;
+  panel.classList.remove('open');
+  overlay?.classList.remove('open');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
 function go(id){
-  if (window.innerWidth <= 768) document.getElementById('sidebar')?.classList.remove('open');
+  // Alias: 'fijo' ahora vive dentro de 'gast' como pestaña Recurrentes
+  if (id === 'fijo') { go('gast'); setGastTab('recurrentes'); return; }
+  // Alias: 'hist' ahora vive dentro de 'stat' como pestaña Historial
+  if (id === 'hist') { go('stat'); setResumenTab('historial'); return; }
+
+  closeMas();
+
   NAVS.forEach(n => { const s = document.getElementById('sec-'+n); if(s) s.classList.toggle('active', n === id); });
-  document.querySelectorAll('.nb').forEach((b,i) => {
-    const isActive = NAVS[i] === id;
+
+  // Actualiza estado activo en botones del sidebar (desktop y móvil visible)
+  document.querySelectorAll('.nb[data-section]').forEach(b => {
+    const isActive = b.dataset.section === id;
     b.classList.toggle('active', isActive);
     b.setAttribute('aria-current', isActive ? 'page' : 'false');
   });
-  if(id === 'agen') renderCal(); if(id === 'stat') renderStats(); if(id === 'gast') updSaldo();
+
+  // Botón "Más": se ilumina si la sección activa está dentro del panel
+  const btnMas = document.getElementById('btn-mas');
+  if (btnMas) {
+    const enMas = MAS_SECTIONS.includes(id);
+    btnMas.classList.toggle('active', enMas);
+    btnMas.setAttribute('aria-current', enMas ? 'page' : 'false');
+  }
+
+  // Ítems dentro del panel Más: marca el activo
+  document.querySelectorAll('.mas-item[data-section]').forEach(item => {
+    item.classList.toggle('active', item.dataset.section === id);
+  });
+
+  if(id === 'agen') renderCal();
+  if(id === 'stat') { setResumenTab('analisis'); }
+  if(id === 'gast') updSaldo();
   sr(`Sección ${id}`);
 }
 
+function setGastTab(tab) {
+  const periodo     = document.getElementById('gast-tab-periodo');
+  const recurrentes = document.getElementById('gast-tab-recurrentes');
+  if (!periodo || !recurrentes) return;
+
+  document.querySelectorAll('.gast-tab').forEach(t => {
+    const isActive = t.getAttribute('data-tab') === tab;
+    t.classList.toggle('active', isActive);
+    t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+
+  periodo.style.display     = tab === 'periodo'     ? 'block' : 'none';
+  recurrentes.style.display = tab === 'recurrentes' ? 'block' : 'none';
+
+  // Renderiza la pestaña que se activa para que esté siempre actualizada
+  if (tab === 'recurrentes') renderFijos();
+  if (tab === 'periodo') renderGastos();
+}
+window.setGastTab = setGastTab;
+
+function setResumenTab(tab) {
+  const analisis  = document.getElementById('resumen-tab-analisis');
+  const historial = document.getElementById('resumen-tab-historial');
+  if (!analisis || !historial) return;
+
+  document.querySelectorAll('.resumen-tab').forEach(t => {
+    const isActive = t.getAttribute('data-tab') === tab;
+    t.classList.toggle('active', isActive);
+    t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+
+  analisis.style.display  = tab === 'analisis'  ? 'block' : 'none';
+  historial.style.display = tab === 'historial' ? 'block' : 'none';
+
+  if (tab === 'analisis')  renderStats();
+  if (tab === 'historial') renderHistorial();
+}
+window.setResumenTab = setResumenTab;
+
 function setPer(tipo, el) {
-  S.tipoPeriodo = tipo; 
-  document.querySelectorAll('.qtab').forEach(t => t.classList.remove('active'));
-  el.classList.add('active'); renderDeudas(); updateDash();
+  S.tipoPeriodo = tipo;
+  document.querySelectorAll('.qtab').forEach(t => {
+    t.classList.remove('active');
+    t.setAttribute('aria-selected', 'false');
+    t.setAttribute('tabindex', '-1');
+  });
+  el.classList.add('active');
+  el.setAttribute('aria-selected', 'true');
+  el.setAttribute('tabindex', '0');
+  renderDeudas(); updateDash();
 }
 
 function onMetCh(){document.getElementById('cus-pct').style.display=document.getElementById('q-met').value==='custom'?'block':'none';calcDist();}
@@ -272,11 +416,11 @@ function prev4k() {
     el.setAttribute('aria-live', 'polite');
     
     el.innerHTML = `
-      <span style="font-weight: 700; color: var(--t1);">Impuesto 4x1000: +${f(mo * 0.004)}</span> 
+      <span style="font-weight: 700; color: var(--t1);">Impuesto 4x1000 (GMF): +${f(mo * GMF_TASA)}</span> 
       ➔ Total a debitar: <span style="color: var(--a3); font-weight: 800;">${f(mo * 1.004)}</span>
       <br>
       <span style="font-size: 0.85rem; color: var(--t3); display: block; margin-top: 0.5rem;">
-        💡 <strong>Tip Legal:</strong> Desde dic. 2024 puedes tener varias cuentas exentas de este impuesto, siempre que entre todas no superen $18.3 millones al mes (350 UVT · 2026).
+        💡 <strong>Tip Legal:</strong> Puedes marcar <strong>una cuenta</strong> como exenta del GMF ante tu banco. Los primeros ${f(GMF_EXENTO_MONTO)}/mes (${GMF_EXENTO_UVT} UVT) en esa cuenta no pagan el impuesto (Art. 879 E.T.).
       </span>
     `;
   } else if (el) {
@@ -333,7 +477,7 @@ async function agregarGasto() {
   const sem = document.getElementById('g-semaforo'); if(sem) sem.style.display = 'none'; 
   const hor = document.getElementById('g-hormiga-impact'); if(hor) hor.style.display='none';
   
-  save(); renderAll(); sr('Gasto registrado');
+  save(); renderSmart(['gastos', 'stats']); sr('Gasto registrado');
 }
 
 function renderGastos(){
@@ -758,20 +902,16 @@ async function guardarDeuda(){
   
   if(!no || !to || !cu){ await showAlert('Completa nombre, saldo y cuota.','Requerido'); return; }
   
-  S.deudas.push({
-    id: Date.now(), 
-    nombre: no, 
-    total: to, 
-    cuota: cu, 
+  S.deudas.push({ id: Date.now(), nombre: no, total: Number(to), cuota: Number(cu),
     periodicidad: document.getElementById('dn-pe').value, 
-    tasa: +document.getElementById('dn-ta').value || 0, 
+    tasa: Number(document.getElementById('dn-ta').value) || 0, 
     tipo: document.getElementById('dn-ti').value, 
     diaPago: diaPago,
     pagado: 0
   });
   
   ['dn-no','dn-to','dn-cu','dn-ta', 'dn-dia'].forEach(i => { const e = document.getElementById(i); if(e) e.value=''; }); 
-  closeM('m-deu'); save(); renderAll();
+  closeM('m-deu'); save(); renderSmart(['deudas']);
 }
 
 // 🎯 NUEVO: Función inteligente que calcula la mora basándose en el día de corte y si ya se pagó este mes
@@ -805,9 +945,9 @@ function obtenerAlertaMora(deuda) {
     
     if (diasMora <= 0) return ''; 
     if (diasMora < 30) return `<div class="alerta-mora alerta-leve" role="status" aria-live="polite" style="margin-top:10px; padding:10px; background:rgba(255,214,10,.1); color:var(--a2); border-radius:8px; border:1px solid rgba(255,214,10,.3); font-size:12px;"><span aria-hidden="true">⏳</span> <strong>Llevas ${diasMora} días de retraso.</strong> Paga pronto para evitar intereses de mora.</div>`;
-    if (diasMora < 60) return `<div class="alerta-mora alerta-media" role="alert" aria-live="assertive" style="margin-top:10px; padding:10px; background:rgba(255,107,53,.1); color:var(--a3); border-radius:8px; border:1px solid rgba(255,107,53,.3); font-size:12px;"><span aria-hidden="true">⚠️</span> <strong>${diasMora} días en mora.</strong> Tu puntaje en Datacrédito está siendo afectado.</div>`;
+    if (diasMora < 90) return `<div class="alerta-mora alerta-media" role="alert" aria-live="assertive" style="margin-top:10px; padding:10px; background:rgba(255,107,53,.1); color:var(--a3); border-radius:8px; border:1px solid rgba(255,107,53,.3); font-size:12px;"><span aria-hidden="true">⚠️</span> <strong>${diasMora} días en mora.</strong> Tu puntaje en Datacrédito está siendo afectado.</div>`;
     
-    return `<div class="alerta-mora alerta-grave" role="alert" aria-live="assertive" style="margin-top:10px; padding:10px; background:rgba(255,68,68,.1); color:var(--dan); border-radius:8px; border:1px solid rgba(255,68,68,.3); font-size:12px;"><span aria-hidden="true">🚨</span> <strong>¡Alerta Legal! (${diasMora} días).</strong> Tienes 20 días por ley para pagar antes del reporte a centrales de riesgo.</div>`;
+    return `<div class="alerta-mora alerta-grave" role="alert" aria-live="assertive" style="margin-top:10px; padding:10px; background:rgba(255,68,68,.1); color:var(--dan); border-radius:8px; border:1px solid rgba(255,68,68,.3); font-size:12px;"><span aria-hidden="true">🚨</span> <strong>¡Alerta Legal! (${diasMora} días).</strong> Por ley (Ley 1266/2008), el banco debe avisarte 20 días calendario antes de reportarte. Actúa hoy.</div>`;
   }
   
   return ''; // Si la fecha límite aún no llega
@@ -816,7 +956,6 @@ function obtenerAlertaMora(deuda) {
 function renderDeudas() {
   const sq = S.deudas.filter(d => d.periodicidad === 'quincenal').reduce((s, d) => s + d.cuota, 0);
   const sm = S.deudas.filter(d => d.periodicidad === 'mensual').reduce((s, d) => s + d.cuota, 0);
-  const diaActual = new Date().getDate();
   let cPer = 0;
   if (S.tipoPeriodo === 'mensual') cPer = (sq * 2) + sm;
   else if (S.tipoPeriodo === 'q1') cPer = sq + sm;
@@ -872,7 +1011,7 @@ function renderDeudas() {
     // 0. TASA DE USURA — alerta si alguna deuda supera el límite legal
     // La Superfinanciera publica la tasa máxima cada trimestre.
     // Referencia actualizada: Circular Externa Superfinanciera (consultar trimestral)
-    const TASA_USURA_EA = 33.31; // Actualizar cada trimestre según Superfinanciera
+    const TASA_USURA_EA = 24.36; // Crédito consumo Q1 2026 - Superfinanciera (Circular 24-dic-2025)
     const deudasUsura = deudasVivas.filter(d => (d.tasa || 0) > TASA_USURA_EA);
     if (deudasUsura.length > 0) {
       avisos.push(`
@@ -902,7 +1041,8 @@ function renderDeudas() {
     // 2. SOLO PAGANDO MÍNIMOS — cuando la cuota apenas cubre intereses
     const deudasEstancadas = deudasVivas.filter(d => {
       if (!d.tasa || d.tasa <= 0 || !d.cuota) return false;
-      const interesMensual = (d.total - d.pagado) * (d.tasa / 100);
+      const tasaMensual = Math.pow(1 + d.tasa / 100, 1 / 12) - 1;
+      const interesMensual = (d.total - d.pagado) * tasaMensual;
       return d.cuota <= interesMensual * 1.1;
     });
     if (deudasEstancadas.length > 0) {
@@ -964,7 +1104,7 @@ function renderDeudas() {
           <span style="font-size:20px; flex-shrink:0;">🌟</span>
           <div style="flex:1;">
             <div style="font-weight:700; font-size:12px; color:var(--a1); margin-bottom:3px;">Tus deudas están bajo control</div>
-            <div style="font-size:11px; color:var(--t3); line-height:1.6;">Solo el <strong style="color:var(--a1);">${pct}%</strong> de tu ingreso va en deudas. Excelente. Cuando las termines de pagar, redirige esas cuotas al ahorro o a inversiones — ya tienes el hábito de "no tener ese dinero disponible".</div>
+            <div style="font-size:11px; color:var(--t3); line-height:1.6;">Solo el <strong style="color:var(--a1);">${pct}%</strong> de tu ingreso va en deudas. Excelente. Cuando las termines de pagar, redirige esas cuotas al ahorro o a inversiones ya tienes el hábito de "no tener ese dinero disponible".</div>
           </div>
         </div>`);
     }
@@ -1028,7 +1168,7 @@ function renderDeudas() {
           <span style="font-size:20px; flex-shrink:0;">🚨</span>
           <div style="flex:1;">
             <div style="font-weight:700; font-size:12px; color:var(--dan); margin-bottom:3px;">Riesgo de reporte en Datacrédito</div>
-            <div style="font-size:11px; color:var(--t3); line-height:1.6;"><strong style="color:var(--t2);">${enMora90.map(x => x.d.nombre).join(', ')}</strong> lleva${enMora90.length > 1 ? 'n' : ''} más de 90 días sin pago. Por ley, el banco debe avisarte con <strong style="color:var(--dan);">20 días hábiles de anticipación</strong> antes de reportarte. Si te reportan y pagas después, el registro negativo dura el doble del tiempo en mora (máximo 4 años). Actúa hoy.</div>
+            <div style="font-size:11px; color:var(--t3); line-height:1.6;"><strong style="color:var(--t2);">${enMora90.map(x => x.d.nombre).join(', ')}</strong> lleva${enMora90.length > 1 ? 'n' : ''} más de 90 días sin pago. Por ley, el banco debe avisarte con strong style="color:var(--dan)">20 días calendario de anticipación </strong> antes de reportarte (Ley 1266/2008, Art. 13) antes de reportarte. Si te reportan y pagas después, el registro negativo dura el doble del tiempo en mora (máximo 4 años). Actúa hoy.</div>
           </div>
         </div>`);
     }
@@ -1307,7 +1447,7 @@ async function confPagarCuota() {
   desF(fo, d.cuota); 
   d.pagado = Math.min(d.pagado + d.cuota, d.total); 
   S.gastos.unshift({ id: Date.now(), desc: `💳 Cuota: ${d.nombre}`, monto: d.cuota, montoTotal: d.cuota, cat: 'deudas', tipo: 'necesidad', fondo: fo, hormiga: false, cuatroXMil: false, fecha: hoy(), metaId: '', autoFijo: false }); 
-  closeM('m-pgc'); save(); renderAll(); 
+  closeM('m-pgc'); save(); renderSmart(['deudas', 'gastos']);
 }
 
 function abrirEditarDeuda(id) {
@@ -1333,20 +1473,20 @@ async function guardarEditarDeuda() {
   if (!nuevoTotal || !nuevaCuota) { await showAlert('El saldo y la cuota no pueden estar vacíos.', 'Faltan datos'); return; }
   d.nombre = document.getElementById('ed-no').value.trim();
   d.tipo = document.getElementById('ed-ti').value;
-  d.total = nuevoTotal;
-  d.cuota = nuevaCuota;
+  d.total = Number(nuevoTotal);
+  d.cuota = Number(nuevaCuota);
   d.periodicidad = document.getElementById('ed-pe').value;
   d.tasa = +document.getElementById('ed-ta').value || 0;
   d.diaPago = +document.getElementById('ed-dia').value || 1;
   closeM('m-edit-deu');
   save();
-  renderAll();
+  renderSmart(['deudas']);
 }
 
-async function delDeu(id){const ok=await showConfirm('¿Eliminar deuda?','Eliminar');if(!ok)return;S.deudas=S.deudas.filter(d=>d.id!==id);save();renderAll();}
+async function delDeu(id){const ok=await showConfirm('¿Eliminar deuda?','Eliminar');if(!ok)return;S.deudas=S.deudas.filter(d=>d.id!==id);save();renderSmart(['deudas']);}
 
 // ─── 8. INVERSIONES, AGENDA, CUENTAS ───
-async function guardarInversion(){const no=document.getElementById('inv-no').value.trim();const pl=document.getElementById('inv-pl').value.trim();const cap=+document.getElementById('inv-cap').value||0;const ta=+document.getElementById('inv-ta').value||0;if(!no||!pl||!cap)return;const fo=document.getElementById('inv-fo').value;if(fo)desF(fo,cap);S.inversiones.push({id:Date.now(),nombre:no,plataforma:pl,capital:cap,rendimiento:0,tasa:ta});closeM('m-inversion');save();renderAll();}
+async function guardarInversion(){const no=document.getElementById('inv-no').value.trim();const pl=document.getElementById('inv-pl').value.trim();const cap=+document.getElementById('inv-cap').value||0;const ta=+document.getElementById('inv-ta').value||0;if(!no||!pl||!cap)return;const fo=document.getElementById('inv-fo').value;if(fo)desF(fo,cap);S.inversiones.push({id:Date.now(),nombre:no,plataforma:pl,capital:cap,rendimiento:0,tasa:ta});closeM('m-inversion');save();renderSmart(['inversiones']);}
 function renderInversiones() {
   const el = document.getElementById('inv-lst');
   if (!el) return;
@@ -1423,7 +1563,7 @@ function openRendimiento(id,n){document.getElementById('rend-id').value=id;docum
 function guardarRendimiento(){const id=+document.getElementById('rend-id').value;const nv=+document.getElementById('rend-val').value;if(!nv)return;const inv=S.inversiones.find(x=>x.id===id);if(inv)inv.rendimiento=nv-inv.capital;closeM('m-rendimiento');save();renderInversiones();}
 function delInversion(id){S.inversiones=S.inversiones.filter(x=>x.id!==id);save();renderInversiones();}
 
-async function guardarPago(){const de=document.getElementById('ag-de').value;const mo=+document.getElementById('ag-mo').value;const fe=document.getElementById('ag-fe').value;if(!de||!mo)return;S.pagosAgendados.push({id:Date.now(),desc:de,monto:mo,fecha:fe,repetir:document.getElementById('ag-re').value,fondo:document.getElementById('ag-fo').value,pagado:false});closeM('m-pago');save();renderAll();}
+async function guardarPago(){const de=document.getElementById('ag-de').value;const mo=+document.getElementById('ag-mo').value;const fe=document.getElementById('ag-fe').value;if(!de||!mo)return;S.pagosAgendados.push({id:Date.now(),desc:de,monto:mo,fecha:fe,repetir:document.getElementById('ag-re').value,fondo:document.getElementById('ag-fo').value,pagado:false});closeM('m-pago');save();renderSmart(['pagos']);}
 
 function renderPagos() {
   const now = new Date();
@@ -1667,7 +1807,13 @@ async function ejecutarPagoAgendado() {
 
   if (p.repetir === 'mensual' || p.repetir === 'quincenal') {
     const nextDate = new Date(p.fecha + 'T12:00:00');
-    if (p.repetir === 'mensual') nextDate.setMonth(nextDate.getMonth() + 1);
+    if (p.repetir === 'mensual') {
+    const diaOriginal = nextDate.getDate();
+    nextDate.setDate(1);
+    nextDate.setMonth(nextDate.getMonth() + 1);
+    const maxDia = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0).getDate();
+    nextDate.setDate(Math.min(diaOriginal, maxDia));
+  }
     if (p.repetir === 'quincenal') nextDate.setDate(nextDate.getDate() + 15);
     const yyyy = nextDate.getFullYear();
     const mm = String(nextDate.getMonth() + 1).padStart(2, '0');
@@ -1675,9 +1821,9 @@ async function ejecutarPagoAgendado() {
     S.pagosAgendados.push({ id: Date.now() + Math.random(), desc: p.desc, monto: p.monto, fecha: `${yyyy}-${mm}-${dd}`, repetir: p.repetir, fondo: p.fondo, pagado: false });
   }
 
-  closeM('m-conf-pago'); 
-  save(); 
-  renderAll();
+  closeM('m-conf-pago');
+  save();
+  renderSmart(['pagos', 'gastos']);
 }
 
 async function delPago(id){
@@ -2075,6 +2221,30 @@ function updateDash() {
   });
   setHtml('d-rec', S.gastos.length ? filasMovimientos.join('') : '<tr><td colspan="5" class="emp">Sin movimientos</td></tr>');
   
+  // Preview de Objetivos en el Dashboard
+  const dMetEl = document.getElementById('d-met');
+  if(dMetEl) {
+    if(!S.objetivos || !S.objetivos.length) {
+      dMetEl.innerHTML = '<div class="emp"><span class="emp-icon">◯</span>Sin objetivos creados</div>';
+    } else {
+      dMetEl.innerHTML = S.objetivos.slice(0,3).map(o => {
+        const pct = o.objetivoAhorro > 0 ? Math.min((o.ahorrado / o.objetivoAhorro) * 100, 100) : 0;
+        const col = pct >= 100 ? 'var(--a1)' : pct > 50 ? 'var(--a2)' : 'var(--a4)';
+        return `<div style="margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span style="font-size:12px; font-weight:600;">${o.icono} ${he(o.nombre)}</span>
+            <span style="font-family:var(--fm); font-size:11px; font-weight:700; color:${col};">${Math.round(pct)}%</span>
+          </div>
+          <div class="pw" style="height:4px;"><div class="pf" style="width:${pct}%; background:${col};"></div></div>
+          <div style="display:flex; justify-content:space-between; margin-top:4px;">
+            <span class="tm" style="font-size:10px;">${f(o.ahorrado)} ahorrado</span>
+            <span class="tm" style="font-size:10px;">Meta: ${f(o.objetivoAhorro)}</span>
+          </div>
+        </div>`;
+      }).join('') + (S.objetivos.length > 3 ? `<div class="tm" style="text-align:center; margin-top:4px;">+${S.objetivos.length - 3} objetivos más</div>` : '');
+    }
+  }
+
   const al=[];
   const mesActual = new Date().getMonth() + 1; 
   if (mesActual === 6 || mesActual === 12) {
@@ -2130,7 +2300,7 @@ function updateDash() {
 }
 
 async function cerrarQ(){if(!S.ingreso)return;const ok=await showConfirm('¿Archivar período?','Cerrar');if(!ok)return;const tG=S.gastos.filter(g=>g.tipo!=='ahorro').reduce((s,g)=>s+(g.montoTotal||g.monto),0);const tA=S.gastos.filter(g=>g.tipo==='ahorro').reduce((s,g)=>s+g.monto,0);const tH=S.gastos.filter(g=>g.hormiga).reduce((s,g)=>s+g.monto,0);const catMap={};S.gastos.filter(g=>g.tipo!=='ahorro').forEach(g=>{catMap[g.cat]=(catMap[g.cat]||0)+(g.montoTotal||g.monto);});S.historial.unshift({id:Date.now(),periodo:`Quincena cerrada: ${hoy()}`,mes:mesStr(),ingreso:S.ingreso,gastado:tG,ahorro:tA,hormiga:tH,catMap});S.gastos=[];S.ingreso=0;save();renderAll();go('hist');}
-function consolMes(){const mes=mesStr();const hist=S.historial.filter(h=>h.mes===mes);let ing=0,eg=0;hist.forEach(h=>{ing+=h.ingreso;eg+=h.gastado;});const gasAct=S.gastos.filter(g=>g.tipo!=='ahorro').reduce((s,g)=>s+(g.montoTotal||g.monto),0);return{ing:ing+S.ingreso,eg:eg+gasAct,bal:(ing+S.ingreso)-(eg+gasAct),q:hist.length+(S.ingreso>0?1:0)};}
+function consolMes(){const mes=mesStr();const hist=S.historial.filter(h=>h.mes===mes);let ing=0,eg=0;hist.forEach(h=>{ing+=h.ingreso;eg+=h.gastado;});const gasAct = S.gastos.filter(g => g.tipo !== 'ahorro').reduce((s, g) => s + (g.montoTotal ?? g.monto), 0);return{ing:ing+S.ingreso,eg:eg+gasAct,bal:(ing+S.ingreso)-(eg+gasAct),q:hist.length+(S.ingreso>0?1:0)};}
 function renderHistorial() {
   const el = document.getElementById('hi-lst');
   if (!el) return;
@@ -2237,15 +2407,10 @@ function calcScore() {
   
   const sq = S.deudas.filter(d => d.periodicidad === 'quincenal').reduce((s, d) => s + d.cuota, 0);
   const sm = S.deudas.filter(d => d.periodicidad === 'mensual').reduce((s, d) => s + d.cuota, 0);
-  const diaActual = new Date().getDate();
   let cPer = 0;
-  if (S.tipoPeriodo === 'mensual') {
-    cPer = (sq * 2) + sm;
-  } else if (S.tipoPeriodo === 'q1') {
-    cPer = sq + sm;
-  } else {
-    cPer = sq;
-  }
+  if (S.tipoPeriodo === 'mensual') cPer = (sq * 2) + sm;
+  else if (S.tipoPeriodo === 'q1') cPer = sq + sm;
+  else cPer = sq;
   const pctDeuda = S.ingreso > 0 ? (cPer / S.ingreso) : 0;
 
   const ptsDeuda = pctDeuda <= 0.30 ? 30 : Math.max(0, 30 - ((pctDeuda - 0.30) * 100));
@@ -2295,22 +2460,47 @@ function cCDT() {
   const ck = document.getElementById('cc-ret')?.checked;
   
   const rendTotal = c * (Math.pow(1 + t, d / 365) - 1);
-  const netTotal = ck ? rendTotal * 0.93 : rendTotal; 
+  const netTotal = ck ? rendTotal * (1 - RETEFUENTE_CDT) : rendTotal;
   
   if (per === '30') {
     const tem = Math.pow(1 + t, 1 / 12) - 1;
     const rendMensual = c * tem;
-    const netMensual = ck ? rendMensual * 0.93 : rendMensual;
+    const netMensual = ck ? rendMensual * (1 - RETEFUENTE_CDT) : rendMensual;
     
     setHtml('cdt-res', `<div style="margin-top:14px; padding:16px; background:var(--s2); border-radius:8px; border:1px solid var(--b2);"><div style="font-size:12px; color:var(--t3); margin-bottom:4px;">Recibirás en tu cuenta cada mes:</div><div style="font-size:24px; color:var(--a1); font-family:var(--fm); font-weight:700;">${f(netMensual)}</div><div style="font-size:12px; color:var(--t2); margin-top:10px; border-top:1px solid var(--b1); padding-top:10px;">Ganancia sumada al final del plazo: <strong>${f(netTotal)}</strong></div></div>`);
   } else {
     setHtml('cdt-res', `<div style="margin-top:14px; padding:16px; background:var(--s2); border-radius:8px; border:1px solid var(--b2);"><div style="font-size:12px; color:var(--t3); margin-bottom:4px;">Ganancia neta total al final del plazo:</div><div style="font-size:24px; color:var(--a1); font-family:var(--fm); font-weight:700;">${f(netTotal)}</div></div>`);
   }
 }
-function cCre(){const p=+document.getElementById('cr-mo')?.value||0;const tm=+document.getElementById('cr-ta')?.value/100||0;const n=+document.getElementById('cr-n')?.value||0;const cu=tm===0?p/n:(p*(tm*Math.pow(1+tm,n))/(Math.pow(1+tm,n)-1));setHtml('cre-res',`<div class="crv">${f(cu)} cuota mensual</div>`);}
+function cCre(){const p=+document.getElementById('cr-mo')?.value||0;const tm = Number(document.getElementById('cr-ta')?.value) || 0;const n=+document.getElementById('cr-n')?.value||0;const cu=tm===0?p/n:(p*(tm*Math.pow(1+tm,n))/(Math.pow(1+tm,n)-1));setHtml('cre-res',`<div class="crv">${f(cu)} cuota mensual</div>`);}
 function cIC(){const c=+document.getElementById('ic-cap')?.value||0;const a=+document.getElementById('ic-apo')?.value||0;const ta=+document.getElementById('ic-tas')?.value/100||0;const m=+document.getElementById('ic-mes')?.value||0;const tm=Math.pow(1+ta,1/12)-1;const vf=tm>0?c*Math.pow(1+tm,m)+a*(Math.pow(1+tm,m)-1)/tm:c+a*m;setHtml('ic-res',`<div class="crv">${f(vf)} valor final</div>`);}
 function cMeta(){const e=document.getElementById('ma-tot');if(!e)return;const M=+e.value||0;const T=+document.getElementById('ma-ten')?.value||0;const fe=document.getElementById('ma-fe')?.value;const falta=Math.max(0,M-T);const dias=Math.max(0,Math.ceil((new Date(fe)-new Date())/86400000));const q=Math.max(1,Math.floor(dias/15));setHtml('ma-res',`<div class="crv">${f(falta/q)} por quincena</div>`);}
-function cPila(){const ing=+document.getElementById('pl-ing')?.value||0;const arl=+document.getElementById('pl-arl')?.value||0.00522;const ibc=Math.max(ing*0.4, 1300000);const tot=ibc*(0.125+0.16+arl);setHtml('pila-res',`<div class="crv">${f(tot)} a pagar (PILA)</div>`);}
+function cPila(){
+  const ingEl = document.getElementById('pl-ing');
+  const arlEl = document.getElementById('pl-arl');
+  const resEl = document.getElementById('pila-res');
+  if(!ingEl || !resEl) return;
+  const ing = +ingEl.value || 0;
+  const arl = +(arlEl?.value || 0.00522);
+  if(ing <= 0){ resEl.innerHTML = ''; return; }
+  const SMMLV_2026 = 1_750_905;
+  const ibc = Math.max(ing * 0.40, SMMLV_2026);
+  const salud   = ibc * SALUD_INDEPEND;
+  const pension = ibc * PENSION_INDEPEND;
+  const arlVal  = ibc * arl;
+  const tot     = salud + pension + arlVal;
+  resEl.innerHTML = `
+    <div style="margin-top:14px; padding:16px; background:var(--s2); border-radius:8px; border:1px solid var(--b2);">
+      <div style="font-size:12px; color:var(--t3); margin-bottom:4px;">Base de cotización (IBC):</div>
+      <div style="font-family:var(--fm); font-size:18px; font-weight:700; color:var(--a4); margin-bottom:14px;">${f(ibc)}</div>
+      <div style="display:flex; flex-direction:column; gap:8px; font-size:12px; color:var(--t2);">
+        <div style="display:flex; justify-content:space-between;"><span>🏥 Salud (12.5%)</span><strong style="font-family:var(--fm);">${f(salud)}</strong></div>
+        <div style="display:flex; justify-content:space-between;"><span>🛡️ Pensión (16%)</span><strong style="font-family:var(--fm);">${f(pension)}</strong></div>
+        <div style="display:flex; justify-content:space-between;"><span>⚠️ ARL</span><strong style="font-family:var(--fm);">${f(arlVal)}</strong></div>
+        <div style="border-top:1px solid var(--b1); padding-top:8px; display:flex; justify-content:space-between;"><strong>Total a pagar</strong><strong style="font-family:var(--fm); color:var(--dan); font-size:16px;">${f(tot)}</strong></div>
+      </div>
+    </div>`;
+}
 
 function cInf() {
   const cap = +document.getElementById('in-cap')?.value || 0;
@@ -2359,8 +2549,28 @@ function exportarDatos(){const data=JSON.stringify(S,null,2);const blob=new Blob
 
 function importarDatos(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=function(ev){try{const d=JSON.parse(ev.target.result);if(typeof d!=='object'||d===null||Array.isArray(d)){showAlert('El archivo no tiene un formato válido de Finko Pro.','Error de importación');return;}Object.assign(S,d);save();renderAll();go('dash');showAlert('✅ Datos importados correctamente.','Importación exitosa');}catch(err){showAlert('No se pudo leer el archivo. Asegúrate de que sea un backup válido de Finko Pro.','Error de importación');console.error('importarDatos:',err);}};r.readAsText(f);}
 
-function exportarCSV() {
+// Carga XLSX solo cuando se necesita (lazy-load). Libera ~1.2MB de carga inicial.
+async function cargarXLSX() {
+  if (window.XLSX) return; // Ya estaba cargado, no hacer nada
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    script.onload = resolve;
+    script.onerror = () => reject(new Error('No se pudo cargar el exportador'));
+    document.head.appendChild(script);
+  });
+}
+
+async function exportarCSV() {
   if (!S.gastos.length) { showAlert('No hay gastos registrados para exportar.', 'Sin datos'); return; }
+
+  try {
+    await cargarXLSX();
+  } catch (err) {
+    showAlert('No se pudo cargar la librería de Excel. Verifica tu conexión a internet e intenta de nuevo.', 'Error de exportación');
+    return;
+  }
+
   const filas = [
     ['Fecha', 'Descripción', 'Categoría', 'Tipo', 'Fondo', 'Hormiga', '4x1000', 'Monto']
   ];
@@ -2382,10 +2592,7 @@ function exportarCSV() {
       g.montoTotal || g.monto
     ]);
   });
-  if (typeof XLSX === 'undefined') {
-    showAlert('No se pudo cargar la librería de Excel. Verifica tu conexión a internet e intenta de nuevo.', 'Error de exportación');
-    return;
-  }
+
   const ws = XLSX.utils.aoa_to_sheet(filas);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Gastos');
@@ -2508,7 +2715,7 @@ function showAlert(msg,title='Aviso'){return new Promise(r=>{_cdlgRes=r;_cdlgPMo
 function showPromptConfirm(msg,exp,title='Peligro'){return new Promise(r=>{_cdlgRes=r;_cdlgPMode=true;_cdlgExp=exp;setEl('cdlg-title',title);setEl('cdlg-msg',msg);document.getElementById('cdlg-input-wrap').style.display='block';document.getElementById('cdlg-cancel').style.display='';document.getElementById('cdlg-ov').classList.add('open');});}
 function showPrompt(msg,title='Editar',valorInicial=''){return new Promise(r=>{_cdlgRes=r;_cdlgPMode=true;_cdlgExp=null;setEl('cdlg-title',title);setEl('cdlg-msg',msg);const inp=document.getElementById('cdlg-input');inp.value=valorInicial;inp.placeholder='';document.getElementById('cdlg-input-wrap').style.display='block';document.getElementById('cdlg-cancel').style.display='';document.getElementById('cdlg-ov').classList.add('open');setTimeout(()=>inp.focus(),80);});}
 
-function toggleSidebar(){const sb=document.getElementById('sidebar');const ex=sb.classList.toggle('expanded');document.body.classList.toggle('sb-expanded',ex);localStorage.setItem('sb_expanded',ex);}
+function toggleSidebar(){const sb=document.getElementById('sidebar');const ex=sb.classList.toggle('expanded');document.body.classList.toggle('sb-expanded',ex);localStorage.setItem('sb_expanded',ex);const btn=document.getElementById('btn-sidebar-toggle');if(btn)btn.setAttribute('aria-expanded',ex);}
 
 function actualizarListasFondos() {
   // ── 1. Selectores nativos (<select>) ──
@@ -2845,54 +3052,13 @@ function updCustomFundButton(selectorId) {
     `;
 }
 
-function openSelectorFondo(originSelectorId) {
-    const listado = document.getElementById('listado-fondos-selector');
-    if (!listado) return;
-    const specialClass = (originSelectorId === 'pgc-fo' || originSelectorId === 'mf-fo') ? 'fnd-sel-efectivo' : '';
-
-    let html = '';
-    // Efectivo
-    html += `
-        <div class="fnd-sel-card ${specialClass}" onclick="seleccionarFondo('${originSelectorId}', 'efectivo')">
-            <div class="fnd-sel-cont"><span class="fnd-sel-icon">💵</span><div class="fnd-sel-data"><span class="fnd-sel-name">Efectivo</span><span class="fnd-sel-type">Bolsillo personal</span></div></div>
-            <div class="fnd-sel-bal-cont"><span class="fnd-sel-bal-val">${f(S.saldos.efectivo)}</span><span class="fnd-sel-bal-label">DISPONIBLE</span></div>
-        </div>`;
-
-    // Cuentas de banco
-    if (S.cuentas && S.cuentas.length > 0) {
-        S.cuentas.forEach(c => {
-            html += `
-                <div class="fnd-sel-card" onclick="seleccionarFondo('${originSelectorId}', 'cuenta_${c.id}')">
-                    <div class="fnd-sel-cont"><span class="fnd-sel-icon">${c.icono}</span><div class="fnd-sel-data"><span class="fnd-sel-name">${he(c.nombre)}</span><span class="fnd-sel-type">Entidad bancaria</span></div></div>
-                    <div class="fnd-sel-bal-cont"><span class="fnd-sel-bal-val">${f(c.saldo)}</span><span class="fnd-sel-bal-label">DISPONIBLE</span></div>
-                </div>`;
-        });
-    } else {
-        html += `
-        <div class="fnd-sel-card" onclick="seleccionarFondo('${originSelectorId}', 'banco')">
-            <div class="fnd-sel-cont"><span class="fnd-sel-icon">🏦</span><div class="fnd-sel-data"><span class="fnd-sel-name">Banco (General)</span><span class="fnd-sel-type">Fondo predeterminado</span></div></div>
-            <div class="fnd-sel-bal-cont"><span class="fnd-sel-bal-val">${f(S.saldos.banco)}</span><span class="fnd-sel-bal-label">DISPONIBLE</span></div>
-        </div>`;
-    }
-
-    listado.innerHTML = html;
-    openM('m-selector-fondo');
-}
-
-function seleccionarFondo(originSelectorId, fondoId) {
-    const original = document.getElementById(originSelectorId);
-    if (original) {
-        original.value = fondoId;
-        original.dispatchEvent(new Event('change'));
-    }
-    updCustomFundButton(originSelectorId);
-    closeM('m-selector-fondo');
-}
+// openSelectorFondo y seleccionarFondo eliminadas — modal nunca implementado en HTML.
+// El sistema de fund-select custom (toggleFundSelect / selFundOpt) cubre este caso.
 
 // =========================================================
 // 14. EXPOSICIÓN GLOBAL A WINDOW (HTML)
 // =========================================================
-window.go=go; window.setPer=setPer; window.toggleSidebar=toggleSidebar; window.openM=openM; window.closeM=closeM;
+window.go=go; window.toggleMas=toggleMas; window.closeMas=closeMas; window.setPer=setPer; window.toggleSidebar=toggleSidebar; window.openM=openM; window.closeM=closeM;
 window.guardarQ=guardarQ; window.resetTodo=resetTodo; window.resetQuincena=resetQuincena; window.onMetCh=onMetCh; window.selM=selM; window.calcDist=calcDist;
 window.agregarGasto=agregarGasto; window.delGasto=delGasto; window.abrirEditarGasto=abrirEditarGasto; window.guardarEditarGasto=guardarEditarGasto; window.limpiarGastos=limpiarGastos; window.prev4k=prev4k; window.actualizarSemaforo=actualizarSemaforo; window.calcularImpactoHormiga=calcularImpactoHormiga; window.renderGastos=renderGastos;
 window.guardarFijo=guardarFijo; window.abrirModalFijo=abrirModalFijo; window.cerrarModalFijo=cerrarModalFijo; window.ejecutarPagoFijo=ejecutarPagoFijo; window.delFijo=delFijo; window.desmFijo=desmFijo;
@@ -2904,4 +3070,4 @@ window.toggleTipoObjetivo=toggleTipoObjetivo; window.openNuevoObjetivo=openNuevo
 window.toggleCalc=toggleCalc; window.cCDT=cCDT; window.cCre=cCre; window.cIC=cIC; window.cMeta=cMeta; window.cPila=cPila;
 window.exportarDatos=exportarDatos; window.importarDatos=importarDatos; window.cerrarQ=cerrarQ; window.guardarInversion=guardarInversion; window.openRendimiento=openRendimiento; window.guardarRendimiento=guardarRendimiento; window.delInversion=delInversion; window.calcPrima=calcPrima; window.guardarPrima=guardarPrima; window.guardarCuenta=guardarCuenta; window.delCuenta=delCuenta; window.editSaldoCuenta=editSaldoCuenta; window.editSaldoCuentaDash=editSaldoCuentaDash; window.exportarCSV=exportarCSV; window.descargarCSVDirecto=descargarCSVDirecto;
 window.toggleDayPicker=toggleDayPicker; window.selectDay=selectDay; window.setDayPicker=setDayPicker;
-window.calcularFondoEmergencia=calcularFondoEmergencia; window.actualizarVistaFondo=actualizarVistaFondo; window.registrarAbonoFondo=registrarAbonoFondo; window.actualizarListasFondos=actualizarListasFondos; window.toggleFundSelect=toggleFundSelect; window.selFundOpt=selFundOpt; window.renderCuentas=renderCuentas; window.renderDashCuentas=renderDashCuentas; window.renderStats=renderStats; window.cInf = cInf; window.cR72 = cR72; window.evaluarGastoEvento = evaluarGastoEvento; window.prevMonth = prevMonth; window.nextMonth = nextMonth; window.showDayDetails = showDayDetails; window.ejecutarPagoAgendado = ejecutarPagoAgendado; window.updCustomFundButton = updCustomFundButton; window.openSelectorFondo = openSelectorFondo; window.seleccionarFondo = seleccionarFondo;
+window.calcularFondoEmergencia=calcularFondoEmergencia; window.actualizarVistaFondo=actualizarVistaFondo; window.registrarAbonoFondo=registrarAbonoFondo; window.actualizarListasFondos=actualizarListasFondos; window.toggleFundSelect=toggleFundSelect; window.selFundOpt=selFundOpt; window.renderCuentas=renderCuentas; window.renderDashCuentas=renderDashCuentas; window.renderStats=renderStats; window.cInf = cInf; window.cR72 = cR72; window.evaluarGastoEvento = evaluarGastoEvento; window.prevMonth = prevMonth; window.nextMonth = nextMonth; window.showDayDetails = showDayDetails; window.ejecutarPagoAgendado = ejecutarPagoAgendado; window.updCustomFundButton = updCustomFundButton;
