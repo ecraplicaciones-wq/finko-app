@@ -19,6 +19,8 @@
 /* :root es tu "muestrario" de colores. Por defecto, son los del MODO OSCURO. 
    Si cambias un color aquí, se actualiza en toda la app al instante. */
 :root {
+  color-scheme: dark light; /* Le dice al browser el esquema nativo — inputs de fecha, scrollbars, etc. */
+
   /* Fondos */
   --bg: #080c0a;  /* Fondo principal (atrás de todo) */
   --s1: #0d1410;  /* Fondo de las tarjetas principales (Cards) */
@@ -175,6 +177,151 @@ body.sb-expanded { padding-left: 220px; }
 /* Botón de tema solo en móvil — oculto en desktop */
 .nb-theme-mobile { display: none; }
 
+/* ─── BOTÓN DE TEMA FIJO — reemplazado por panel Más ─── */
+.nb-theme-fixed { display: none !important; }
+
+/* ─── BOTONES SOLO VISIBLES EN MÓVIL ─── */
+.nb-mas  { display: none; }
+.nb-tema { display: none; }
+
+/* ─── PANEL MÁS ─── */
+.mas-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  bottom: 64px;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 195;
+}
+.mas-overlay.open { display: block; }
+
+.mas-panel {
+  position: fixed;
+  bottom: 64px;
+  left: 0;
+  right: 0;
+  background: var(--s1);
+  border-top: 1px solid var(--b1);
+  border-radius: 20px 20px 0 0;
+  z-index: 196;
+  padding: 14px 16px 24px;
+  transform: translateY(100%);
+  transition: transform .3s cubic-bezier(.4,0,.2,1);
+  box-shadow: 0 -8px 32px rgba(0,0,0,.3);
+  display: none;
+}
+.mas-panel.open { transform: translateY(0); display: block; }
+
+@keyframes masSlideIn {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.mas-panel.open { animation: masSlideIn .3s cubic-bezier(.4,0,.2,1) forwards; }
+
+.mas-handle {
+  width: 36px; height: 4px;
+  background: var(--b2);
+  border-radius: 2px;
+  margin: 0 auto 18px;
+}
+
+.mas-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 0;
+}
+
+.mas-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 16px 6px 14px;
+  background: var(--s2);
+  border: 1px solid var(--b1);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all .18s;
+  font-family: var(--ff);
+  min-height: 72px;
+}
+.mas-item:hover { background: var(--s3); border-color: var(--b2); }
+.mas-item:focus-visible { outline: 2px solid var(--a1); outline-offset: 2px; border-radius: 14px; }
+.mas-item.active {
+  background: rgba(0,220,130,.1);
+  border-color: rgba(0,220,130,.3);
+}
+.mas-icon { font-size: 22px; line-height: 1; }
+.mas-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--t3);
+  text-align: center;
+  letter-spacing: .3px;
+  line-height: 1.2;
+}
+.mas-item.active .mas-label { color: var(--a1); }
+
+.mas-theme-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 13px 16px;
+  background: var(--s2);
+  border: 1px solid var(--b1);
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: var(--ff);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--t2);
+  transition: all .18s;
+  margin-top: 12px;
+}
+.mas-theme-btn:hover { background: var(--s3); border-color: var(--b2); }
+.mas-theme-btn:focus-visible { outline: 2px solid var(--a1); outline-offset: 2px; }
+
+@media (max-width: 768px) {
+  .nb-theme-fixed {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    width: 56px;
+    height: 64px;
+    background: var(--s1);
+    border: none;
+    border-top: 1px solid var(--b1);
+    border-left: 1px solid var(--b1);
+    cursor: pointer;
+    z-index: 201;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .nb-theme-fixed .ni {
+    font-size: 18px;
+    line-height: 1;
+  }
+  .nb-theme-fixed-txt {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--t3);
+    font-family: var(--ff);
+    letter-spacing: 0.3px;
+  }
+  .nb-theme-fixed:hover {
+    background: var(--s2);
+  }
+  }
+
 .sb-period { display: none; align-items: center; gap: 8px; padding: 4px 10px; color: var(--t3); font-size: 10px; width: 100%; font-family: var(--fm); }
 #sidebar.expanded .sb-period { display: flex; }
 
@@ -213,14 +360,14 @@ main { max-width: 1180px; margin: 0 auto; padding: 24px 18px 100px; position: re
 /* ─── 7. ENCABEZADOS DE SECCIÓN (SECTION HEADERS) ──────────────── */
 .sh { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 22px; gap: 12px; flex-wrap: wrap; }
 .sh-left { display: flex; align-items: center; gap: 14px; }
-.sh-icon { width: 44px; height: 44px; border-radius: var(--r2); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
-.sh-icon.green { background: rgba(0,220,130,.12); border: 1px solid rgba(0,220,130,.2); }
-.sh-icon.blue { background: rgba(59,158,255,.12); border: 1px solid rgba(59,158,255,.2); }
-.sh-icon.yellow { background: rgba(255,214,10,.12); border: 1px solid rgba(255,214,10,.2); }
-.sh-icon.purple { background: rgba(180,78,255,.12); border: 1px solid rgba(180,78,255,.2); }
-.sh-icon.red { background: rgba(255,68,68,.12); border: 1px solid rgba(255,68,68,.2); }
-.sh-icon.teal { background: rgba(0,229,204,.12); border: 1px solid rgba(0,229,204,.2); }
-.sh-icon.orange { background: rgba(255,107,53,.12); border: 1px solid rgba(255,107,53,.2); }
+.sh-icon {
+  width: 56px; height: 56px; min-width: 56px; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; flex-shrink: 0;
+  background: var(--s2);
+  border: 1px solid var(--b1);
+}
+
 .st { font-weight: 800; font-size: 22px; letter-spacing: -.5px; }
 .ss { font-size: 12px; color: var(--t3); margin-top: 3px; }
 .sh-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -280,7 +427,15 @@ input, select, textarea {
   color: var(--t1); font-family: var(--fm); font-size: 12px; padding: 10px 13px;
   width: 100%; outline: none; transition: border-color .18s, box-shadow .18s;
 }
-input:focus, select:focus, textarea:focus { border-color: var(--a1); box-shadow: 0 0 0 3px rgba(0,220,130,.1); }
+input:focus, select:focus, textarea:focus {
+  border-color: var(--a1);
+  box-shadow: 0 0 0 3px rgba(0,220,130,.1);
+}
+/* Teclado: ring verde visible para navegación accesible */
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--a1);
+  outline-offset: 2px;
+}
 input::placeholder { color: var(--t3); }
 select option { background: var(--s2); }
 
@@ -318,6 +473,46 @@ input[type=checkbox] { width: auto; accent-color: var(--a1); cursor: pointer; wi
 .bsm { padding: 5px 11px; font-size: 11px; border-radius: 6px; } /* Botón pequeño */
 .bfw { width: 100%; justify-content: center; margin-top: 8px; padding: 12px; } /* Botón ancho total */
 
+/* Pestañas internas de la sección Gastos */
+.gast-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.gast-tab {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: var(--r2);
+  border: 1px solid var(--b2);
+  background: var(--s2);
+  cursor: pointer;
+  font-family: var(--ff);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--t3);
+  transition: all .2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.gast-tab:hover { border-color: var(--b3); color: var(--t2); }
+.gast-tab.active { border-color: var(--a1); background: rgba(0,220,130,.07); color: var(--a1); }
+
+/* Barra de búsqueda (Gastos) */
+.srch {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--s2); border: 1px solid var(--b2);
+  border-radius: var(--r1); padding: 6px 10px;
+  transition: border-color .18s;
+}
+.srch:focus-within { border-color: var(--a1); }
+.srch input {
+  border: none; background: transparent; padding: 4px 0;
+  width: 160px; min-width: 80px; outline: none; font-size: 12px;
+}
+.srch input:focus-visible { outline: none; }
+.srch span { color: var(--t3); font-size: 13px; flex-shrink: 0; }
 
 /* ─── 12. TABLAS Y COMPONENTES ESPECÍFICOS ─────────────────────── */
 table { width: 100%; border-collapse: collapse; }
@@ -563,13 +758,16 @@ tr:hover td { background: rgba(22,32,25,.6); }
 /* Si la pantalla es de Celular (Acá ocurre la magia de la App Móvil) */
 @media(max-width: 768px) {
   /* Quitamos el espacio lateral del menú y lo pasamos para abajo */
-  body { padding-left: 0; padding-bottom: 60px; }
+  body { padding-left: 0; padding-bottom: 68px; }
   body.sb-expanded { padding-left: 0; }
   
   /* Convertimos el menú vertical en una barra horizontal en el piso (Bottom Bar) */
-  #sidebar { width: 100%; height: 56px; flex-direction: row; top: auto; bottom: 0; border-right: none; border-top: 1px solid var(--b1); overflow-x: auto; }
-  #sidebar.expanded { width: 100%; height: 56px; }
-  #sidebar nav { flex-direction: row; padding: 0 4px; overflow-x: auto; overflow-y: hidden; align-items: stretch; gap: 0; }
+  #sidebar { width: 100%; height: 64px; flex-direction: row; top: auto; bottom: 0; border-right: none; border-top: 1px solid var(--b1); overflow-x: auto; }
+  #sidebar.expanded { width: 100%; height: 64px; }
+  #sidebar nav { flex-direction: row; padding: 0 4px; overflow-x: hidden; overflow-y: hidden; align-items: stretch; gap: 0; justify-content: space-around; }
+  .nb-mas  { display: flex !important; }
+  .nb-tema { display: flex !important; }
+  .nb-mob-hidden { display: none !important; }
 
   /* Botón de tema — solo visible en móvil dentro del nav */
   .nb-theme-mobile { display: flex; }
@@ -578,8 +776,8 @@ tr:hover td { background: rgba(22,32,25,.6); }
   #sidebar nav .nb {
     width: 52px;
     min-width: 52px;
-    height: 56px;
-    padding: 0;
+    height: 64px;
+    padding: 0 2px 4px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -589,6 +787,7 @@ tr:hover td { background: rgba(22,32,25,.6); }
     border-bottom: 3px solid transparent;
     border-left: none;
     background: none;
+    gap: 0;
   }
 
   /* Cancelar el hover de desktop en móvil */
@@ -599,15 +798,16 @@ tr:hover td { background: rgba(22,32,25,.6); }
 
   /* El hover se aplica solo al ícono, no al botón entero */
   #sidebar nav .nb .ni {
-    font-size: 20px;
+    font-size: 18px;
     line-height: 1;
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 10px;
+    border-radius: 8px;
     transition: background .15s;
+    flex-shrink: 0;
   }
   #sidebar nav .nb:hover .ni {
     background: var(--s2);
@@ -627,7 +827,27 @@ tr:hover td { background: rgba(22,32,25,.6); }
   /* Escondemos elementos que estorban en el celular */
   .sb-logo, .sb-bottom { display: none; }
   .nb::after { display: none; }
-  .nb-txt { display: none !important; }
+
+  /* Etiquetas de texto debajo del ícono en bottom bar */
+  .nb-txt {
+    display: block !important;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--t3);
+    letter-spacing: 0.2px;
+    line-height: 1;
+    margin-top: 3px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 52px;
+  }
+
+  /* Activo: etiqueta en verde */
+  #sidebar nav .nb.active .nb-txt {
+    color: var(--a1);
+  }
   
   /* Colapsamos las grillas para que todo se apile hacia abajo */
   .g2, .g3, .g4, .g5 { grid-template-columns: 1fr; gap: 16px; }
@@ -668,6 +888,7 @@ tr:hover td { background: rgba(22,32,25,.6); }
 /* Si inyectas "light-theme" al body, estas variables destruyen y reemplazan a 
    las de arriba, cambiando todos los colores de la app al instante. */
 body.light-theme {
+  color-scheme: light dark; /* Inputs de fecha, scrollbars y controles nativos en modo claro */
   --bg: #e8ede9; --s1: #ffffff; --s2: #eaf0ec; --s3: #dce8df;
   --b1: #c8d8cc; --b2: #b0c4b5; --b3: #90aa96;
   --t1: #0a130c; --t2: #2d4435; --t3: #4a6b53;
@@ -720,14 +941,40 @@ body.light-theme .mcd.sel { border-color: var(--a1); background: rgba(0,122,71,.
 body.light-theme .tip { border-left-color: var(--a1); }
 body.light-theme .insight-card { background: var(--s2); }
 
+/* Íconos de sección con fondo más oscuro en modo claro para que los emojis claros contrasten */
+body.light-theme .sh-icon {
+  background: #c8d8cc;
+  border-color: #b0c4b5;
+}
+
 /* Ajustes específicos para el Fondo de Emergencia */
 #card-fondo-emergencia { border: 1px solid var(--b1); background: linear-gradient(135deg, var(--s2), var(--s1)); }
 
-/* ─── 19. SCROLLBAR INVISIBLE (UX NATIVA) ──────────────────────── */
+/* ─── 19. SCROLLBAR INVISIBLE (UX NATIVA) ──────────────────────────── */
 /* Hace que la barra de desplazamiento sea delgada y sutil para imitar una app de celular */
 ::-webkit-scrollbar { width: 4px; } 
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--b2); border-radius: 2px; }
+
+/* ─── 20. ACCESIBILIDAD: MOVIMIENTO REDUCIDO (WCAG 2.1 AA) ─────────── */
+/* Usuarios con epilepsia fotosensible, vértigo o migraña pueden desactivar las animaciones
+   desde su sistema operativo. Esta regla las respeta automáticamente. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .sec.active {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .pf, .db {
+    transition: none !important;
+  }
+}
 
 /* =========================================================
    ESTILOS PREMIUM: PUNTAJE Y TORTA MODERNA
