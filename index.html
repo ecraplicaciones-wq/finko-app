@@ -4,7 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Finko Pro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <meta name="description" content="Finko Pro — Tu app de finanzas personales para Colombia. Controla gastos, deudas, ahorros e inversiones desde tu celular.">
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#00dc82">
   <meta name="mobile-web-app-capable" content="yes">
@@ -12,7 +15,6 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Finko Pro">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <link rel="stylesheet" href="style.css?v=2.0">
 </head>
 <body>
@@ -21,7 +23,7 @@
 <div id="sr-announcer" aria-live="polite" aria-atomic="true" class="sr-only"></div>
 
 <aside id="sidebar" aria-label="Menú principal de navegación">
-  <div class="sb-logo" onclick="toggleSidebar()" title="Expandir menú" style="cursor:pointer">
+  <div class="sb-logo" onclick="toggleSidebar()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSidebar()}" role="button" tabindex="0" aria-label="Expandir o colapsar menú lateral" id="btn-sidebar-toggle">
     <div class="sb-brand">
       <span class="sb-icon-collapsed">F</span>
       <span class="sb-icon-expanded">Finko<span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 3px; display: inline-block; transform: translateY(-1px); -webkit-text-fill-color: var(--a1); color: var(--a1); opacity: 0.8;">PRO</span></span>
@@ -32,18 +34,21 @@
     </svg>
   </div>
   <nav>
-    <button class="nb active" onclick="go('dash')" title="Dashboard"><span class="ni">🏠</span><span class="nb-txt">Dashboard</span></button>
-    <button class="nb" onclick="go('quin')" title="Quincena"><span class="ni">💰</span><span class="nb-txt">Planificar</span></button>
-    <button class="nb" onclick="go('gast')" title="Gastos"><span class="ni">💸</span><span class="nb-txt">Gastos</span></button>
-    <button class="nb" onclick="go('fijo')" title="Fijos"><span class="ni">📌</span><span class="nb-txt">Fijos</span></button>
-    <button class="nb" onclick="go('objetivos')" title="Objetivos"><span class="ni">🎯</span><span class="nb-txt">Objetivos</span></button>
-    <button class="nb" onclick="go('inve')" title="Inversiones"><span class="ni">📈</span><span class="nb-txt">Inversiones</span></button>
-    <button class="nb" onclick="go('deu')" title="Deudas"><span class="ni">💳</span><span class="nb-txt">Deudas</span></button>
-    <button class="nb" onclick="go('agen')" title="Agenda"><span class="ni">📅</span><span class="nb-txt">Agenda</span></button>
-    <button class="nb" onclick="go('stat')" title="Estadísticas"><span class="ni">📊</span><span class="nb-txt">Estadísticas</span></button>
-    <button class="nb" onclick="go('hist')" title="Historial"><span class="ni">🕰️</span><span class="nb-txt">Historial</span></button>
-    <button class="nb nb-theme-mobile" onclick="toggleTheme()" id="btn-theme-mobile" title="Cambiar tema"><span class="ni">☀️</span></button>
+    <button class="nb active" data-section="dash" onclick="go('dash')" title="Dashboard" aria-current="page"><span class="ni" aria-hidden="true">🏠</span><span class="nb-txt">Dashboard</span></button>
+    <button class="nb" data-section="gast" onclick="go('gast')" title="Gastos"><span class="ni" aria-hidden="true">💸</span><span class="nb-txt">Gastos</span></button>
+    <button class="nb" data-section="agen" onclick="go('agen')" title="Agenda"><span class="ni" aria-hidden="true">📅</span><span class="nb-txt">Agenda</span></button>
+    <button class="nb" data-section="deu" onclick="go('deu')" title="Compromisos"><span class="ni" aria-hidden="true">🤝</span><span class="nb-txt">Compromisos</span></button>
+    <button class="nb nb-mob-hidden" data-section="quin" onclick="go('quin')" title="Planificar"><span class="ni" aria-hidden="true">📋</span><span class="nb-txt">Planificar</span></button>
+    <button class="nb nb-mob-hidden" data-section="objetivos" onclick="go('objetivos')" title="Objetivos"><span class="ni" aria-hidden="true">🎯</span><span class="nb-txt">Objetivos</span></button>
+    <button class="nb nb-mob-hidden" data-section="inve" onclick="go('inve')" title="Inversiones"><span class="ni" aria-hidden="true">📈</span><span class="nb-txt">Inversiones</span></button>
+    <button class="nb nb-mob-hidden" data-section="stat" onclick="go('stat')" title="Resumen"><span class="ni" aria-hidden="true">📊</span><span class="nb-txt">Resumen</span></button>
+    <button class="nb nb-mas" id="btn-mas" onclick="toggleMas()" title="Más secciones" aria-label="Ver más secciones" aria-expanded="false" aria-haspopup="true"><span class="ni" aria-hidden="true">⋯</span><span class="nb-txt">Más</span></button>
+    <button class="nb nb-tema" onclick="toggleTheme()" id="btn-theme-bar" aria-label="Cambiar entre tema claro y oscuro" title="Cambiar tema"><span class="ni" aria-hidden="true">☀️</span><span class="nb-txt">Tema</span></button>
   </nav>
+  <button class="nb-theme-fixed" onclick="toggleTheme()" id="btn-theme-mobile" aria-label="Cambiar entre tema claro y oscuro" title="Cambiar tema">
+    <span class="ni" aria-hidden="true">☀️</span>
+    <span class="nb-theme-fixed-txt">Tema</span>
+  </button>
   <div class="sb-bottom">
     <button class="nb sb-theme-btn" onclick="toggleTheme()" id="btn-theme" title="Cambiar tema">
       <span class="ni">☀️</span><span class="nb-txt">Cambiar tema</span>
@@ -152,8 +157,8 @@
   <section class="sec" id="sec-quin">
     <div class="sh">
       <div class="sh-left">
-        <div class="sh-icon green">🧭</div>
-        <div><div class="st">Planificar Período</div><div class="ss">Dale un propósito a cada peso que tienes hoy</div></div>
+        <div class="sh-icon green">📋</div>
+        <div><div class="st">Planificar</div><div class="ss">Dale un propósito a cada peso antes de gastarlo</div></div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn bd bsm" onclick="resetQuincena()" title="Limpia los gastos actuales sin borrar tus cuentas">↺ Reiniciar período</button>
@@ -173,10 +178,10 @@
         <div class="card">
           <div class="ct">Frecuencia del Presupuesto</div>
           <p class="tm mb">¿Para cuánto tiempo debe rendirte este dinero?</p>
-          <div class="qtabs" role="tablist">
-            <div class="qtab active" onclick="setPer('q1', this)" role="tab" tabindex="0"><span>Quincena</span><strong>Días 1 – 15</strong></div>
-            <div class="qtab" onclick="setPer('q2', this)" role="tab" tabindex="0"><span>Quincena</span><strong>Días 16 – 31</strong></div>
-            <div class="qtab" onclick="setPer('mensual', this)" role="tab" tabindex="0"><span>Mensual</span><strong>Mes Completo</strong></div>
+          <div class="qtabs" role="tablist" aria-label="Frecuencia del presupuesto">
+            <div class="qtab active" onclick="setPer('q1', this)" role="tab" tabindex="0" aria-selected="true"><span>Quincena</span><strong>Días 1 – 15</strong></div>
+            <div class="qtab" onclick="setPer('q2', this)" role="tab" tabindex="-1" aria-selected="false"><span>Quincena</span><strong>Días 16 – 31</strong></div>
+            <div class="qtab" onclick="setPer('mensual', this)" role="tab" tabindex="-1" aria-selected="false"><span>Mensual</span><strong>Mes Completo</strong></div>
           </div>
         </div>
 
@@ -230,14 +235,20 @@
   <section id="sec-gast" class="sec">
       <div class="sh">
         <div class="sh-left">
-          <div class="sh-icon" style="background:linear-gradient(135deg,rgba(255,68,68,.15),rgba(255,214,10,.15));border:1px solid rgba(255,68,68,.3)">💸</div>
+          <div class="sh-icon">💸</div>
           <div>
             <h1 class="st">Gastos</h1>
-            <div class="ss">Registra tus salidas de dinero</div>
+            <div class="ss">Registra lo que gastas y controla tus compromisos fijos</div>
           </div>
         </div>
       </div>
 
+      <div class="gast-tabs" role="tablist" aria-label="Tipo de gasto">
+        <button class="gast-tab active" data-tab="periodo" onclick="setGastTab('periodo')" role="tab" aria-selected="true">💸 Del período</button>
+        <button class="gast-tab" data-tab="recurrentes" onclick="setGastTab('recurrentes')" role="tab" aria-selected="false">📌 Recurrentes</button>
+      </div>
+
+      <div id="gast-tab-periodo" role="tabpanel" aria-label="Gastos del período">
       <div class="g2" style="align-items:flex-start">
         
         <div class="card">
@@ -276,7 +287,7 @@
                 <option value="entretenimiento">🎬 Entretenimiento</option>
                 <option value="salud">🏥 Salud</option>
                 <option value="ropa">👕 Ropa / Compras</option>
-                <option value="deudas">💳 Deudas</option>
+                <option value="deudas">📉 Deudas</option>
                 <option value="otro">📦 Otro</option>
               </select>
             </div>
@@ -347,23 +358,26 @@
         </div>
 
       </div>
-    </section>
+    </div><!-- fin gast-tab-periodo -->
 
-  <section class="sec" id="sec-fijo">
-    <div class="sh">
-      <div class="sh-left"><div class="sh-icon blue">📌</div><div><div class="st">Gastos Fijos 📌</div><div class="ss">Configúralos una vez · marca pagados cada mes</div></div></div>
-      <button class="btn bp bsm" onclick="openM('m-fijo')">+ Nuevo fijo</button>
-    </div>
-    <div class="g2 mb">
-      <div class="card accent-red"><div class="ct">Total fijos mensuales</div><div class="mc-val c-red" id="fi-tot">$0</div><div class="mc-sub">comprometido cada mes</div></div>
-      <div class="card accent-green"><div class="ct">Pagados este mes</div><div class="mc-val c-green" id="fi-pag">$0</div><div class="mc-sub"><span id="fi-np">0</span> de <span id="fi-nt">0</span> compromisos</div></div>
-    </div>
-    <div id="fi-lst"><div class="emp"><span class="emp-icon">◉</span>Sin gastos fijos.</div></div>
+    <!-- PESTAÑA: RECURRENTES -->
+    <div id="gast-tab-recurrentes" style="display:none;" role="tabpanel" aria-label="Gastos recurrentes">
+      <div class="sh" style="margin-bottom:16px;">
+        <div></div>
+        <button class="btn bp bsm" onclick="openM('m-fijo')">+ Nuevo fijo</button>
+      </div>
+      <div class="g2 mb">
+        <div class="card accent-red"><div class="ct">Total fijos mensuales</div><div class="mc-val c-red" id="fi-tot">$0</div><div class="mc-sub">comprometido cada mes</div></div>
+        <div class="card accent-green"><div class="ct">Pagados este mes</div><div class="mc-val c-green" id="fi-pag">$0</div><div class="mc-sub"><span id="fi-np">0</span> de <span id="fi-nt">0</span> compromisos</div></div>
+      </div>
+      <div id="fi-lst"><div class="emp"><span class="emp-icon">◉</span>Sin gastos fijos.</div></div>
+    </div><!-- fin gast-tab-recurrentes -->
+
   </section>
 
   <section class="sec" id="sec-objetivos">
     <div class="sh">
-      <div class="sh-left"><div class="sh-icon purple">🎯</div><div><div class="st">Objetivos Financieros</div><div class="ss">Tus metas de ahorro puro y eventos en un solo lugar</div></div></div>
+      <div class="sh-left"><div class="sh-icon purple">🎯</div><div><div class="st">Objetivos</div><div class="ss">Ahorra con un propósito claro y llega a tu meta</div></div></div>
       <button class="btn bp bsm" onclick="openNuevoObjetivo()">+ Nuevo Objetivo</button>
     </div>
     <div class="al alb mb" style="font-size:11px"><span class="al-icon">💡</span>Crea un <strong>Ahorro Simple</strong> para alcancías, laptops o imprevistos. Crea un <strong>Evento Planeado</strong> si necesitas ahorrar primero y luego registrar los gastos durante el viaje o cumpleaños.</div>
@@ -372,7 +386,7 @@
 
   <section class="sec" id="sec-inve">
     <div class="sh">
-      <div class="sh-left"><div class="sh-icon blue">📈</div><div><div class="st">Portafolio de Inversiones</div><div class="ss">Pon tu dinero a trabajar (CDTs, FICs, Acciones)</div></div></div>
+      <div class="sh-left"><div class="sh-icon blue">📈</div><div><div class="st">Inversiones</div><div class="ss">Pon tu dinero a trabajar: CDTs, FICs y más</div></div></div>
       <button class="btn bp bsm" onclick="openM('m-inversion')">+ Nueva inversión</button>
     </div>
     <div class="g3 mb">
@@ -411,13 +425,33 @@
           <div class="fg">
             <div class="ckrow" onclick="document.getElementById('cc-ret').checked=!document.getElementById('cc-ret').checked;cCDT()">
               <input type="checkbox" id="cc-ret" checked onclick="event.stopPropagation();cCDT()">
-              <label for="cc-ret" style="display:flex; align-items:center; gap:6px;">Aplicar retención (7%)</label>
+              <label for="cc-ret" style="display:flex; align-items:center; gap:6px;">Aplicar retención en la fuente (<span data-const="RETEFUENTE_CDT_PCT"></span>)</label>
             </div>
-            <div style="font-size:11px; color:var(--t3); margin-top:4px; margin-left:28px;">
-              En Colombia, los bancos descuentan automáticamente este 7% sobre tus <strong>ganancias</strong> como anticipo de impuestos (Retefuente).
+            <div style="font-size:11px; color:var(--t3); margin-top:4px; margin-left:28px; line-height:1.6;">
+              El banco descuenta el <strong><span data-const="RETEFUENTE_CDT_PCT"></span></strong> únicamente sobre tus <strong>intereses</strong>, no sobre el capital (Art. 395 E.T. + Decreto 2418/2013). Es un anticipo del impuesto de renta, no un costo extra.<br>
+              <span style="color:var(--a2);">⚠️ <strong>Ojo con el GMF:</strong> el 4x1000 se cobra cuando <em>consignas</em> el dinero al CDT, no cuando lo retiras al vencimiento.</span>
             </div>
           </div>
           <div class="cres" id="cdt-res"></div>
+        </div>
+      </div>
+
+      <div class="calc-c">
+        <div class="calc-header" onclick="toggleCalc('cre')">
+          <div class="calc-icon" style="background:rgba(255,107,53,.12);border:1px solid rgba(255,107,53,.2)">💳</div>
+          <div class="calc-info"><div class="calc-t">Simulador de Crédito</div></div><span id="cre-arr" style="color:var(--t3);font-size:18px">▾</span>
+        </div>
+        <div class="calc-body closed" id="cre-body">
+          <div class="calc-sep"></div>
+          <div style="background:rgba(255,107,53,.05); border:1px solid rgba(255,107,53,.2); padding:12px; border-radius:8px; margin-bottom:16px; font-size:12px; color:var(--t2); line-height:1.5;">
+            <strong>💡 ¿Cuánto pagarías cada mes?</strong> Ingresa el monto que quieres pedir prestado, la tasa mensual y el plazo en cuotas. Si no sabes la tasa, el banco está obligado a informártela antes de firmar (Ley 1328/2009).
+          </div>
+          <div class="fg"><label for="cr-mo">Monto del crédito (COP)</label><input type="number" id="cr-mo" placeholder="Ej: 5000000" oninput="cCre()"></div>
+          <div class="fr">
+            <div class="fg"><label>Tasa mensual (%)</label><input type="number" id="cr-ta" placeholder="Ej: 1.8" step="0.01" oninput="cCre()"></div>
+            <div class="fg"><label>Número de cuotas</label><input type="number" id="cr-n" placeholder="Ej: 24" oninput="cCre()"></div>
+          </div>
+          <div class="cres" id="cre-res"></div>
         </div>
       </div>
 
@@ -440,6 +474,25 @@
             <div class="fg"><label>Plazo (Meses)</label><input type="number" id="ic-mes" value="60" oninput="cIC()"></div>
           </div>
           <div class="cres" id="ic-res"></div>
+        </div>
+      </div>
+
+      <div class="calc-c">
+        <div class="calc-header" onclick="toggleCalc('meta')">
+          <div class="calc-icon" style="background:rgba(157,115,235,.12);border:1px solid rgba(157,115,235,.2)">🎯</div>
+          <div class="calc-info"><div class="calc-t">¿Cuánto ahorrar por quincena para mi meta?</div></div><span id="meta-arr" style="color:var(--t3);font-size:18px">▾</span>
+        </div>
+        <div class="calc-body closed" id="meta-body">
+          <div class="calc-sep"></div>
+          <div style="background:rgba(157,115,235,.05); border:1px solid rgba(157,115,235,.2); padding:12px; border-radius:8px; margin-bottom:16px; font-size:12px; color:var(--t2); line-height:1.5;">
+            <strong>🎯 Planea tu ahorro quincena a quincena.</strong> Dile a Finko cuánto cuesta lo que quieres, cuánto ya tienes guardado y cuándo lo necesitas. Te dirá exactamente cuánto apartar cada quincena.
+          </div>
+          <div class="fr">
+            <div class="fg"><label for="ma-tot">¿Cuánto cuesta la meta? (COP)</label><input type="number" id="ma-tot" placeholder="Ej: 3000000" oninput="cMeta()"></div>
+            <div class="fg"><label for="ma-ten">¿Cuánto ya tienes? (COP)</label><input type="number" id="ma-ten" placeholder="Ej: 500000" oninput="cMeta()"></div>
+          </div>
+          <div class="fg"><label for="ma-fe">¿Para cuándo la necesitas?</label><input type="date" id="ma-fe" oninput="cMeta()"></div>
+          <div class="cres" id="ma-res"></div>
         </div>
       </div>
 
@@ -489,16 +542,14 @@
   <section class="sec" id="sec-deu">
     <div class="sh" style="align-items: center; margin-bottom: 24px;">
       <div class="sh-left" style="gap: 16px;">
-        <div class="sh-icon" style="background: linear-gradient(135deg, rgba(255,68,68,.2), rgba(255,107,53,.2)); width: 56px; height: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; line-height: 1; font-size: 28px; box-shadow: 0 4px 12px rgba(255,68,68,.15); border-radius: 16px; flex-shrink: 0;">
-          <span style="transform: translateY(-5px);">💳</span>
-        </div>
+        <div class="sh-icon">🤝</div>
         <div>
-          <div class="st" style="font-size: 24px;">Estrategias de Pago</div>
-          <div class="ss" style="font-size: 13px;">Organiza tus deudas y libérate financieramente</div>
+          <div class="st" style="font-size: 24px;">Compromisos</div>
+          <div class="ss" style="font-size: 13px;">Lo que debes y lo que te deben, todo en un lugar</div>
         </div>
       </div>
       <button class="btn bp" onclick="openM('m-deu')" style="padding: 12px 20px; font-size: 14px; box-shadow: 0 4px 16px rgba(0,220,130,.3); border-radius: 8px; font-weight: 700; white-space: nowrap;">
-        <span style="font-size: 16px; margin-right: 4px;">+</span> Agregar Deuda
+        <span style="font-size: 16px; margin-right: 4px;">+</span> Registrar compromiso
       </button>
     </div>
 
@@ -558,12 +609,10 @@
 
     <div class="sh" style="align-items: center; margin-bottom: 24px;">
       <div class="sh-left" style="gap: 16px;">
-        <div class="sh-icon" style="background: linear-gradient(135deg, rgba(255,214,10,.2), rgba(255,107,53,.2)); border: 1px solid rgba(255,214,10,.4); width: 56px; height: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; line-height: 1; font-size: 28px; box-shadow: 0 4px 12px rgba(255,214,10,.15); border-radius: 16px; flex-shrink: 0;">
-          <span>📅</span>
-        </div>
+        <div class="sh-icon">📅</div>
         <div>
-          <div class="st" style="font-size: 24px;">Agenda de Pagos</div>
-          <div class="ss" style="font-size: 13px;">Controla tus gastos programados y asegura tu liquidez</div>
+          <div class="st" style="font-size: 24px;">Agenda</div>
+          <div class="ss" style="font-size: 13px;">Programa tus pagos y nunca te tomen por sorpresa</div>
         </div>
       </div>
       <button class="btn bp" onclick="openM('m-pago')" style="padding: 12px 20px; font-size: 14px; box-shadow: 0 4px 16px rgba(0,220,130,.3); border-radius: 8px; font-weight: 700; white-space: nowrap;">
@@ -639,14 +688,20 @@
   <section id="sec-stat" class="sec">
       <div class="sh">
         <div class="sh-left">
-          <div class="sh-icon" style="background:linear-gradient(135deg,rgba(0,220,130,.15),rgba(59,158,255,.15));border:1px solid rgba(0,220,130,.3)">📊</div>
+          <div class="sh-icon">📊</div>
           <div>
-            <h1 class="st">Estadísticas y Pronósticos</h1>
-            <div class="ss">Inteligencia artificial aplicada a tus finanzas</div>
+            <h1 class="st">Resumen</h1>
+            <div class="ss">Entiende cómo te fue y aprende de cada período</div>
           </div>
         </div>
       </div>
 
+      <div class="gast-tabs" role="tablist" aria-label="Vista del resumen">
+        <button class="gast-tab resumen-tab active" data-tab="analisis" onclick="setResumenTab('analisis')" role="tab" aria-selected="true">📊 Análisis</button>
+        <button class="gast-tab resumen-tab" data-tab="historial" onclick="setResumenTab('historial')" role="tab" aria-selected="false">📂 Historial</button>
+      </div>
+
+      <div id="resumen-tab-analisis" role="tabpanel">
       <div class="g2" style="align-items: flex-start;">
         <div style="display: flex; flex-direction: column; gap: 16px;">
           <div class="card" style="text-align:center;">
@@ -676,13 +731,26 @@
           </div>
         </div>
       </div>
+    </div><!-- fin g2 analisis -->
+      </div><!-- fin resumen-tab-analisis -->
+
+      <div id="resumen-tab-historial" style="display:none;" role="tabpanel">
+        <div class="sh" style="margin-bottom:16px; flex-wrap:wrap; gap:8px;">
+          <div class="tm" style="font-size:12px;">Tus períodos cerrados y el resumen de cada uno</div>
+          <button class="btn bg bsm" onclick="cerrarQ()">Cerrar período ✓</button>
+        </div>
+        <div class="card mb">
+          <div class="ct">Gestión de Datos</div>
+          <div class="g2">
+            <button class="btn bbl" onclick="exportarDatos()">⬇️ Respaldo JSON</button>
+            <label class="btn bg" style="margin:0;display:flex;justify-content:center;align-items:center;cursor:pointer">⬆️ Cargar Respaldo<input type="file" id="file-import" accept=".json" style="display:none" onchange="importarDatos(event)"></label>
+            <button class="btn byw" onclick="exportarCSV()" style="grid-column:span 2">📊 Exportar Excel</button>
+          </div>
+        </div>
+        <div id="hi-lst"></div>
+      </div><!-- fin resumen-tab-historial -->
+
     </section>
-  
-  <section class="sec" id="sec-hist">
-    <div class="sh"><div class="sh-left"><div class="sh-icon orange">🕰️</div><div><div class="st">Historial</div></div></div><button class="btn bg bsm" onclick="cerrarQ()">Cerrar período ✓</button></div>
-    <div class="card mt mb"><div class="ct">Gestión de Datos</div><div class="g2"><button class="btn bbl" onclick="exportarDatos()">⬇️ Respaldo JSON</button><label class="btn bg" style="margin:0;display:flex;justify-content:center;align-items:center;cursor:pointer">⬆️ Cargar Respaldo<input type="file" id="file-import" accept=".json" style="display:none" onchange="importarDatos(event)"></label><button class="btn byw" onclick="exportarCSV()" style="grid-column:span 2">📊 Exportar Excel</button></div></div>
-    <div id="hi-lst"></div>
-  </section>
 </main>
 
 <div class="modal-ov" id="m-fondo-emergencia" role="dialog" aria-modal="true"><div class="modal" style="width: 400px;"><div class="fb mb"><div class="mtit">Abonar al Fondo 🛡️</div><button class="mclose" onclick="closeM('m-fondo-emergencia')">×</button></div><div class="fg"><label>Cuenta de origen</label><select id="fe-fo"></select></div><div class="fg"><label>Monto a guardar (COP)</label><input type="number" id="fe-monto-abono" placeholder="Ej. 100000"></div><button class="btn bp bfw" onclick="registrarAbonoFondo()">Guardar en el Fondo</button></div></div>
@@ -1123,7 +1191,51 @@
 
 <div class="modal-ov" id="m-rendimiento" role="dialog" aria-modal="true"><div class="modal"><div class="fb mb"><div class="mtit" id="rend-t">Actualizar Valor</div><button class="mclose" onclick="closeM('m-rendimiento')">×</button></div><div class="fg"><label>Saldo Total Actual</label><input type="number" id="rend-val"></div><input type="hidden" id="rend-id"><button class="btn bp bfw" onclick="guardarRendimiento()">Actualizar</button></div></div>
 
-<div class="modal-ov" id="m-prima" role="dialog" aria-modal="true"><div class="modal"><div class="fb mb"><div class="mtit">Prima / Bono 🎉</div><button class="mclose" onclick="closeM('m-prima')">×</button></div><div class="fg"><label>Monto</label><input type="number" id="prm-mo" oninput="calcPrima()"></div><div class="fg"><label>¿A dónde entró?</label><select id="prm-fo"><option value="banco">🏦 Banco</option><option value="efectivo">💵 Efectivo</option></select></div><div id="prm-res"></div><button class="btn bp bfw" onclick="guardarPrima()">Registrar Ingreso</button></div></div>
+<div class="modal-ov" id="m-prima" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="fb mb">
+      <div class="mtit">Prima / Bono 🎉</div>
+      <button class="mclose" onclick="closeM('m-prima')">×</button>
+    </div>
+    <div style="background:rgba(255,214,10,.06); border:1px solid rgba(255,214,10,.2); border-radius:10px; padding:14px; margin-bottom:18px; font-size:12px; color:var(--t2); line-height:1.6;">
+      💡 <strong>Regla 30/40/30:</strong> Destina el 30% a deudas, 40% a ahorro y 30% a gustos. Es la fórmula que los expertos recomiendan para aprovechar los ingresos extra sin derrocharlos.
+    </div>
+    <div class="fg">
+      <label for="prm-mo">Monto recibido (COP)</label>
+      <input type="number" id="prm-mo" placeholder="Ej: 2500000" oninput="calcPrima()">
+    </div>
+    <div class="fg">
+      <label>¿A qué cuenta llegó el dinero?</label>
+      <select id="prm-fo"></select>
+    </div>
+    <div id="prm-res"></div>
+    <button class="btn bp bfw" onclick="guardarPrima()">Registrar Ingreso →</button>
+  </div>
+</div>
+
+<!-- ─── PANEL MÁS (SOLO MÓVIL) ─── -->
+<div id="mas-overlay" class="mas-overlay" onclick="closeMas()" aria-hidden="true"></div>
+<div id="mas-panel" class="mas-panel" role="dialog" aria-label="Más secciones" aria-modal="false">
+  <div class="mas-handle" aria-hidden="true"></div>
+  <div class="mas-grid">
+    <button class="mas-item" data-section="quin" onclick="go('quin')" aria-label="Ir a Planificar">
+      <span class="mas-icon" aria-hidden="true">📋</span>
+      <span class="mas-label">Planificar</span>
+    </button>
+    <button class="mas-item" data-section="objetivos" onclick="go('objetivos')" aria-label="Ir a Objetivos">
+      <span class="mas-icon" aria-hidden="true">🎯</span>
+      <span class="mas-label">Objetivos</span>
+    </button>
+    <button class="mas-item" data-section="inve" onclick="go('inve')" aria-label="Ir a Inversiones">
+      <span class="mas-icon" aria-hidden="true">📈</span>
+      <span class="mas-label">Inversiones</span>
+    </button>
+    <button class="mas-item" data-section="stat" onclick="go('stat')" aria-label="Ir a Resumen">
+      <span class="mas-icon" aria-hidden="true">📊</span>
+      <span class="mas-label">Resumen</span>
+    </button>
+  </div>
+</div>
 
 <script type="module" src="main.js"></script>
 <script>if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./service-worker.js').then(r=>console.log('SW ok')).catch(e=>console.error('SW error',e));});}</script>
