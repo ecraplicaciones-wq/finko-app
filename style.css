@@ -68,11 +68,11 @@
   /* Sombras */
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
 
-  /* Colores para gráfico de estadísticas */
-  --stat-needs: #00bcd4;    /* Cyan vibrante (Necesidades) */
-  --stat-desires: #ff9800;  /* Naranja (Deseos) */
-  --stat-hormiga: #795548;  /* Marrón (Hormiga - Fuga) */
-  --stat-savings: #4caf50;  /* Verde (Ahorros) */
+  /* Colores para gráfico de estadísticas — conectados a la paleta principal */
+  --stat-needs: var(--a4);     /* Azul (Necesidades) — mismo que bancos/info */
+  --stat-desires: var(--a2);   /* Amarillo (Deseos) — mismo que alertas leves */
+  --stat-hormiga: #a0794a;     /* Café (Gastos Hormiga — fugas pequeñas) */
+  --stat-savings: var(--a1);   /* Verde (Ahorros) — mismo que ingresos/éxito */
 }
 
 
@@ -153,8 +153,8 @@ body.sb-expanded { padding-left: 220px; }
 }
 #sidebar.expanded .nb { width: 100%; height: 40px; padding: 0 10px; justify-content: flex-start; }
 .nb:hover { color: var(--t1); background: var(--s2); border-color: var(--b1); }
-/* Resalta de verde la pestaña en la que estás */
-.nb.active { border-left: 3px solid var(--a1); color: var(--a1); } 
+/* Resalta la pestaña activa con borde + fondo sutil — más visible sin saturar */
+.nb.active { border-left: 3px solid var(--a1); color: var(--a1); background: rgba(0,220,130,.07); }
 .nb .ni { font-size: 16px; line-height: 1; flex-shrink: 0; width: 20px; text-align: center; }
 
 /* Tooltip (El letrerito flotante que sale al poner el mouse) */
@@ -178,7 +178,7 @@ body.sb-expanded { padding-left: 220px; }
 .nb-theme-mobile { display: none; }
 
 /* ─── BOTÓN DE TEMA FIJO — reemplazado por panel Más ─── */
-.nb-theme-fixed { display: none !important; }
+.nb-theme-fixed { display: none; }
 
 /* ─── BOTONES SOLO VISIBLES EN MÓVIL ─── */
 .nb-mas  { display: none; }
@@ -212,13 +212,11 @@ body.sb-expanded { padding-left: 220px; }
   box-shadow: 0 -8px 32px rgba(0,0,0,.3);
   display: none;
 }
-.mas-panel.open { transform: translateY(0); display: block; }
-
 @keyframes masSlideIn {
   from { transform: translateY(100%); }
   to   { transform: translateY(0); }
 }
-.mas-panel.open { animation: masSlideIn .3s cubic-bezier(.4,0,.2,1) forwards; }
+.mas-panel.open { display: block; animation: masSlideIn .3s cubic-bezier(.4,0,.2,1) forwards; }
 
 .mas-handle {
   width: 36px; height: 4px;
@@ -287,39 +285,7 @@ body.sb-expanded { padding-left: 220px; }
 .mas-theme-btn:focus-visible { outline: 2px solid var(--a1); outline-offset: 2px; }
 
 @media (max-width: 768px) {
-  .nb-theme-fixed {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    position: fixed;
-    bottom: 0;
-    right: 0;
-    width: 56px;
-    height: 64px;
-    background: var(--s1);
-    border: none;
-    border-top: 1px solid var(--b1);
-    border-left: 1px solid var(--b1);
-    cursor: pointer;
-    z-index: 201;
-    gap: 2px;
-    flex-shrink: 0;
-  }
-  .nb-theme-fixed .ni {
-    font-size: 18px;
-    line-height: 1;
-  }
-  .nb-theme-fixed-txt {
-    font-size: 9px;
-    font-weight: 600;
-    color: var(--t3);
-    font-family: var(--ff);
-    letter-spacing: 0.3px;
-  }
-  .nb-theme-fixed:hover {
-    background: var(--s2);
-  }
+  .nb-theme-fixed { display: none; }
   }
 
 .sb-period { display: none; align-items: center; gap: 8px; padding: 4px 10px; color: var(--t3); font-size: 10px; width: 100%; font-family: var(--fm); }
@@ -354,19 +320,26 @@ main { max-width: 1180px; margin: 0 auto; padding: 24px 18px 100px; position: re
 .card.accent-purple { border-color: rgba(157,115,235,.2); background: linear-gradient(135deg, rgba(180,78,255,.04), var(--s1)); }
 .card.accent-red { border-color: rgba(255,68,68,.2); background: linear-gradient(135deg, rgba(255,68,68,.04), var(--s1)); }
 
-.ct { font-size: 10px; font-weight: 700; color: var(--t3); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 12px; }
-
+/* Títulos de sección de tarjeta — mínimo 11px para legibilidad en móvil */
+.ct { font-size: 11px; font-weight: 700; color: var(--t3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
 
 /* ─── 7. ENCABEZADOS DE SECCIÓN (SECTION HEADERS) ──────────────── */
 .sh { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 22px; gap: 12px; flex-wrap: wrap; }
 .sh-left { display: flex; align-items: center; gap: 14px; }
 .sh-icon {
-  width: 56px; height: 56px; min-width: 56px; border-radius: 16px;
+  width: 56px; height: 56px; min-width: 56px; border-radius: var(--r3);
   display: flex; align-items: center; justify-content: center;
   font-size: 28px; flex-shrink: 0;
   background: var(--s2);
   border: 1px solid var(--b1);
 }
+/* Colores de fondo por sección — cada sección tiene su identidad visual */
+.sh-icon.green  { background: rgba(0,220,130,.1);  border-color: rgba(0,220,130,.2);  }
+.sh-icon.blue   { background: rgba(59,158,255,.1); border-color: rgba(59,158,255,.2); }
+.sh-icon.yellow { background: rgba(255,214,10,.1); border-color: rgba(255,214,10,.2); }
+.sh-icon.red    { background: rgba(255,96,96,.1);  border-color: rgba(255,96,96,.2);  }
+.sh-icon.purple { background: rgba(157,115,235,.1);border-color: rgba(157,115,235,.2);}
+.sh-icon.teal   { background: rgba(0,229,204,.1);  border-color: rgba(0,229,204,.2);  }
 
 .st { font-weight: 800; font-size: 22px; letter-spacing: -.5px; }
 .ss { font-size: 12px; color: var(--t3); margin-top: 3px; }
@@ -393,8 +366,15 @@ main { max-width: 1180px; margin: 0 auto; padding: 24px 18px 100px; position: re
 .mc-sub { font-size: 11px; color: var(--t3); margin-top: 5px; }
 
 /* Clases de color para inyectar rápido en HTML */
-.c-green{color:var(--a1)} .c-yellow{color:var(--a2)} .c-red{color:var(--a3)} 
-.c-blue{color:var(--a4)} .c-purple{color:var(--a5)} .c-teal{color:var(--a7)}
+/* Nota: .c-red aplica naranja-rojo (--a3) para cifras de gasto, no para alertas.
+   Para errores y acciones destructivas usa .c-danger (rojo real --dan). */
+.c-green  { color: var(--a1); }
+.c-yellow { color: var(--a2); }
+.c-red    { color: var(--a3); } /* Naranja-rojo para gastos */
+.c-blue   { color: var(--a4); }
+.c-purple { color: var(--a5); }
+.c-teal   { color: var(--a7); }
+.c-danger { color: var(--dan); } /* Rojo real para alertas críticas y errores */
 
 /* Tarjetas de Saldo Superior (Efectivo/Banco) */
 .sc { border-radius: var(--r3); padding: 18px; text-align: center; border: 1px solid var(--b1); background: var(--s1); transition: all .2s; }
@@ -443,7 +423,7 @@ label { font-size: 11px; color: var(--t3); display: block; margin-bottom: 5px; f
 .fg { margin-bottom: 14px; } 
 .fr { display: flex; gap: 10px; } .fr .fg { flex: 1; }
 
-input[type=checkbox] { width: auto; accent-color: var(--a1); cursor: pointer; width: 16px; height: 16px; }
+input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--a1); cursor: pointer; }
 .ckrow { display: flex; align-items: center; gap: 10px; padding: 10px 13px; background: var(--s2); border: 1px solid var(--b2); border-radius: var(--r1); cursor: pointer; transition: all .18s; user-select: none; }
 .ckrow:hover { border-color: var(--a1); background: rgba(0,220,130,.05); }
 .ckrow label { margin: 0; cursor: pointer; font-size: 12px; color: var(--t1); font-weight: 400; }
@@ -514,6 +494,16 @@ input[type=checkbox] { width: auto; accent-color: var(--a1); cursor: pointer; wi
 .srch input:focus-visible { outline: none; }
 .srch span { color: var(--t3); font-size: 13px; flex-shrink: 0; }
 
+/* Botones de filtro de gastos */
+.gfil { cursor: pointer; padding: 5px 14px; font-size: 11px; font-weight: 600; border: none; opacity: .65; transition: opacity .15s, font-weight .15s; }
+.gfil.active-fil { opacity: 1; font-weight: 800; }
+.gfil:hover { opacity: .85; }
+.gfil-hormiga { background: rgba(121,85,72,.12); color: #a1887f; border: 1px solid rgba(121,85,72,.2) !important; }
+
+/* Subclases de valor métrico para jerarquía visual */
+.mc-val-sm { font-family: var(--fm); font-weight: 800; font-size: 16px; letter-spacing: -.5px; line-height: 1; }
+.mc-val-md { font-family: var(--fm); font-weight: 800; font-size: 20px; letter-spacing: -.5px; line-height: 1; }
+
 /* ─── 12. TABLAS Y COMPONENTES ESPECÍFICOS ─────────────────────── */
 table { width: 100%; border-collapse: collapse; }
 th { font-size: 9px; color: var(--t3); text-transform: uppercase; letter-spacing: 1.2px; padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--b1); font-weight: 700; font-family: var(--ff); }
@@ -557,8 +547,8 @@ tr:hover td { background: rgba(22,32,25,.6); }
 .mcd .md { font-size: 11px; color: var(--t3); line-height: 1.5; }
 
 /* Tarjetas base para items pequeños (Deudas, Inversiones, Historial) */
-.gc { background: var(--s2); border: 1px solid var(--b1); border-radius: var(--r2); padding: 16px; margin-bottom: 12px; transition: all .2s; }
-.gc:hover { border-color: var(--b2); transform: translateY(-1px); }
+.gc { background: var(--s2); border: 1px solid var(--b1); border-radius: var(--r2); padding: 16px; margin-bottom: 12px; transition: transform .2s ease, box-shadow .2s ease, border-color .2s; }
+.gc:hover { border-color: var(--b2); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,.12); }
 .gn { font-weight: 800; font-size: 18px; margin-bottom: 2px; text-transform: capitalize; }
 .gm { font-size: 11px; color: var(--t3); margin-bottom: 10px; }
 .ga { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 6px; flex-wrap: wrap; gap: 5px; }
@@ -582,40 +572,23 @@ tr:hover td { background: rgba(22,32,25,.6); }
 .gfc { background: var(--s2); border: 1px solid var(--b1); border-radius: var(--r2); padding: 13px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; transition: all .2s; }
 .gfc:hover { border-color: var(--b2); }
 
-/* Tarjeta moderna de Historial */
-.hist-card {
-  background: var(--s1);
-  border: 1px solid var(--b1);
-  border-radius: 16px;
-  margin-bottom: 12px;
-  overflow: hidden;
-  transition: transform .2s ease, box-shadow .2s ease;
-}
-.hist-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.12); }
-
-/* Tarjeta moderna de Inversión */
-
-.inv-card {
-  background: var(--s1);
-  border: 1px solid var(--b1);
-  border-radius: 16px;
-  margin-bottom: 12px;
-  overflow: hidden;
-  transition: transform .2s ease, box-shadow .2s ease;
-}
-.inv-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.12); }
-
-/* Tarjeta moderna de Gasto Fijo */
-
+/* ─── TARJETA REUTILIZABLE (.hist-card / .inv-card / .fijo-card) ───── */
+/* Una sola base para tres usos. Cambia aquí y se actualiza en toda la app. */
+.hist-card,
+.inv-card,
 .fijo-card {
   background: var(--s1);
   border: 1px solid var(--b1);
-  border-radius: 16px;
+  border-radius: var(--r3); /* 16px via variable — coherente con el sistema */
   margin-bottom: 12px;
   overflow: hidden;
   transition: transform .2s ease, box-shadow .2s ease;
 }
+.hist-card:hover,
+.inv-card:hover,
 .fijo-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+
+/* Estados propios del Gasto Fijo */
 .fijo-card.pagado { opacity: .65; }
 .fijo-card.pagado .fijo-nombre { text-decoration: line-through; color: var(--t3); }
 
@@ -671,7 +644,7 @@ tr:hover td { background: rgba(22,32,25,.6); }
 .pago-card {
   background: var(--s1);
   border: 1px solid var(--b1);
-  border-radius: 16px;
+  border-radius: var(--r3);
   margin-bottom: 12px;
   overflow: hidden;
   transition: transform .2s ease, box-shadow .2s ease;
@@ -712,7 +685,7 @@ tr:hover td { background: rgba(22,32,25,.6); }
 .stat-bar-fill { height: 100%; border-radius: 999px; transition: width .6s ease; }
 .stat-bar-val { font-family: var(--fm); font-size: 11px; color: var(--t2); min-width: 70px; text-align: right; }
 
-.fin-score { display: flex; align-items: center; justify-content: center; width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--a1); font-family: var(--fm); font-weight: 700; font-size: 32px; color: var(--a1); margin: 0 auto 12px; position: relative; }
+.fin-score { display: flex; align-items: center; justify-content: center; width: 100px; height: 100px; border-radius: 50%; border: 4px solid currentColor; font-family: var(--fm); font-weight: 700; font-size: 42px; margin: 0 auto 12px; }
 .insight-card { background: var(--s2); border-radius: var(--r2); padding: 12px 14px; margin-bottom: 8px; border-left: 3px solid var(--a1); font-size: 12px; line-height: 1.6; }
 
 
@@ -831,17 +804,16 @@ tr:hover td { background: rgba(22,32,25,.6); }
   /* Etiquetas de texto debajo del ícono en bottom bar */
   .nb-txt {
     display: block !important;
-    font-size: 9px;
-    font-weight: 600;
-    color: var(--t3);
-    letter-spacing: 0.2px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--t2);
+    letter-spacing: 0.1px;
     line-height: 1;
-    margin-top: 3px;
+    margin-top: 4px;
     text-align: center;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 52px;
+    overflow: visible;
+    max-width: 60px;
   }
 
   /* Activo: etiqueta en verde */
@@ -888,7 +860,7 @@ tr:hover td { background: rgba(22,32,25,.6); }
 /* Si inyectas "light-theme" al body, estas variables destruyen y reemplazan a 
    las de arriba, cambiando todos los colores de la app al instante. */
 body.light-theme {
-  color-scheme: light dark; /* Inputs de fecha, scrollbars y controles nativos en modo claro */
+  color-scheme: light; /* Fuerza controles nativos (fecha, scroll) al esquema claro */
   --bg: #e8ede9; --s1: #ffffff; --s2: #eaf0ec; --s3: #dce8df;
   --b1: #c8d8cc; --b2: #b0c4b5; --b3: #90aa96;
   --t1: #0a130c; --t2: #2d4435; --t3: #4a6b53;
@@ -950,13 +922,60 @@ body.light-theme .sh-icon {
 /* Ajustes específicos para el Fondo de Emergencia */
 #card-fondo-emergencia { border: 1px solid var(--b1); background: linear-gradient(135deg, var(--s2), var(--s1)); }
 
-/* ─── 19. SCROLLBAR INVISIBLE (UX NATIVA) ──────────────────────────── */
+/* ─── 19. ACORDEÓN FORMULARIO GASTOS + FIJOS ───────────────────────── */
+.form-gasto-arrow {
+  color: var(--a1); font-size: 18px; transition: transform .25s ease;
+  display: inline-block;
+}
+#form-gasto-body {
+  display: none;
+  border-top: 1px solid var(--b1);
+  margin-top: 14px;
+  padding-top: 16px;
+}
+#form-gasto-card.form-open #form-gasto-body { display: block; animation: fadeInSlide .25s ease; }
+#form-gasto-card.form-open .form-gasto-arrow { transform: rotate(180deg); }
+
+/* Grid principal de la sección Gastos */
+.gast-split-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  align-items: flex-start;
+}
+.gast-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+@media (max-width: 768px) {
+  .gast-split-grid { grid-template-columns: 1fr; }
+
+  /* En móvil: fijos empiezan colapsados */
+  #fijos-panel-body { display: none; }
+
+  /* Agenda: calendario aparece después de la lista de pagos */
+  #sec-agen .g2 { display: flex; flex-direction: column; }
+  #sec-agen .g2 > :first-child { order: 1; }
+
+  /* Stats de Agenda: scroll horizontal sin apilarse */
+  .agen-stats-row { overflow-x: auto; flex-wrap: nowrap !important; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .agen-stats-row::-webkit-scrollbar { display: none; }
+  .agen-stats-row > div { flex-shrink: 0; }
+}
+
+/* Columna de fijos: misma altura que historial en desktop */
+.gast-fijos-col { display: flex; flex-direction: column; }
+.gast-fijos-col .card { flex: 1; }
+
+/* ─── 20. SCROLLBAR INVISIBLE (UX NATIVA) ──────────────────────────── */
 /* Hace que la barra de desplazamiento sea delgada y sutil para imitar una app de celular */
 ::-webkit-scrollbar { width: 4px; } 
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--b2); border-radius: 2px; }
 
-/* ─── 20. ACCESIBILIDAD: MOVIMIENTO REDUCIDO (WCAG 2.1 AA) ─────────── */
+/* ─── 21. ACCESIBILIDAD: MOVIMIENTO REDUCIDO (WCAG 2.1 AA) ─────────── */
 /* Usuarios con epilepsia fotosensible, vértigo o migraña pueden desactivar las animaciones
    desde su sistema operativo. Esta regla las respeta automáticamente. */
 @media (prefers-reduced-motion: reduce) {
@@ -987,13 +1006,6 @@ body.light-theme .sh-icon {
   align-items: center;
   gap: 4px;
   margin-top: 10px;
-}
-.fin-score {
-  font-size: 60px !important;
-  font-weight: 800;
-  border: none !important;
-  height: auto !important;
-  width: auto !important;
 }
 .fin-score-label {
   font-size: 14px;
@@ -1069,19 +1081,6 @@ body.light-theme .sh-icon {
    MEJORAS VISUALES: PUNTAJE, CHECKLIST Y CENTRO DE LA TORTA
    ========================================================= */
 
-/* Círculo perfecto para el Puntaje */
-.fin-score {
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-  width: 100px !important;
-  height: 100px !important;
-  border-radius: 50%;
-  border: 4px solid currentColor !important;
-  margin: 0 auto 12px auto;
-  font-size: 42px !important;
-}
-
 /* Checklist limpia sin fondo gris */
 .score-checklist {
   background: transparent !important;
@@ -1105,15 +1104,6 @@ body.light-theme .sh-icon {
   justify-content: center;
   line-height: 1.1;
   width: 70%;
-}
-
-/* Animación de hover para las tarjetas (Deudas, Historial, etc) */
-.gc {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.gc:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
 }
 
 @keyframes deudaEntrada {
