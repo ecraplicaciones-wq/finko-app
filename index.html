@@ -37,7 +37,7 @@
     <button class="nb active" data-section="dash" onclick="go('dash')" title="Dashboard" aria-current="page"><span class="ni" aria-hidden="true">🏠</span><span class="nb-txt">Dashboard</span></button>
     <button class="nb" data-section="gast" onclick="go('gast')" title="Gastos"><span class="ni" aria-hidden="true">💸</span><span class="nb-txt">Gastos</span></button>
     <button class="nb" data-section="agen" onclick="go('agen')" title="Agenda"><span class="ni" aria-hidden="true">📅</span><span class="nb-txt">Agenda</span></button>
-    <button class="nb" data-section="deu" onclick="go('deu')" title="Compromisos"><span class="ni" aria-hidden="true">🤝</span><span class="nb-txt">Compromisos</span></button>
+    <button class="nb" data-section="deu" onclick="go('deu')" title="Compromisos"><span class="ni" aria-hidden="true">🤝</span><span class="nb-txt">Deudas</span></button>
     <button class="nb nb-mob-hidden" data-section="quin" onclick="go('quin')" title="Planificar"><span class="ni" aria-hidden="true">📋</span><span class="nb-txt">Planificar</span></button>
     <button class="nb nb-mob-hidden" data-section="objetivos" onclick="go('objetivos')" title="Objetivos"><span class="ni" aria-hidden="true">🎯</span><span class="nb-txt">Objetivos</span></button>
     <button class="nb nb-mob-hidden" data-section="inve" onclick="go('inve')" title="Inversiones"><span class="ni" aria-hidden="true">📈</span><span class="nb-txt">Inversiones</span></button>
@@ -57,7 +57,7 @@
   </div>
 </aside>
 
-<main id="main" role="main">
+<main id="main">
 
   <section class="sec active" id="sec-dash">
     
@@ -69,24 +69,23 @@
       <div class="sh-actions"><button class="btn bp bsm" onclick="go('quin')">+ Nueva quincena</button></div>
     </div>
     
-    <div class="g3 mb" role="region" aria-label="Saldos actuales">
-      
-      <div class="sc green" style="position:relative;">
-        <div class="sl">💵 Efectivo en mano</div>
-        <div class="sv c-green" id="d-ef">$0</div>
-        <button class="btn bg bsm" onclick="editEfectivoDash()" style="position:absolute; top:12px; right:12px; padding:4px 8px; font-size:11px;" title="Actualizar efectivo">✏️</button>
+    <div class="mb" role="region" aria-label="Saldos actuales">
+      <div style="text-align:center; padding:22px 20px 16px; background:linear-gradient(135deg, rgba(255,214,10,.1), rgba(255,107,53,.05)); border:2px solid rgba(255,214,10,.3); border-radius:18px; margin-bottom:10px;">
+        <div style="font-size:11px; font-weight:700; color:var(--t3); text-transform:uppercase; letter-spacing:1.2px; margin-bottom:8px;">💰 Total disponible</div>
+        <div style="font-family:var(--fm); font-weight:800; font-size:40px; color:var(--t1); letter-spacing:-2px; line-height:1;" id="d-tot">$0</div>
+        <div style="font-size:11px; color:var(--t3); margin-top:6px;">efectivo + cuentas bancarias</div>
       </div>
-      
-      <div class="sc blue">
-        <div class="sl">🏦 Total en cuentas</div>
-        <div class="sv c-blue" id="d-bk">$0</div>
+      <div class="g2">
+        <div class="sc green" style="position:relative;">
+          <button onclick="editEfectivoDash()" title="Editar efectivo" aria-label="Editar saldo de efectivo" style="position:absolute; top:10px; right:10px; background:rgba(0,220,130,.12); border:1px solid rgba(0,220,130,.2); color:var(--a1); width:28px; height:28px; border-radius:8px; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; transition:all .18s; padding:0;" onmouseover="this.style.background='rgba(0,220,130,.22)'" onmouseout="this.style.background='rgba(0,220,130,.12)'">✏️</button>
+          <div class="sl">💵 Efectivo en mano</div>
+          <div class="sv c-green" id="d-ef">$0</div>
+        </div>
+        <div class="sc blue">
+          <div class="sl">🏦 Total en cuentas</div>
+          <div class="sv c-blue" id="d-bk">$0</div>
+        </div>
       </div>
-      
-      <div class="sc yellow">
-        <div class="sl">💰 Total disponible</div>
-        <div class="sv c-yellow" id="d-tot">$0</div>
-      </div>
-      
     </div>
     
     <div class="card mb" style="border-color:rgba(59,158,255,.2)">
@@ -104,21 +103,46 @@
       <div id="d-prox"><div class="emp"><span class="emp-icon">▦</span>Sin pagos agendados</div></div>
     </div>
 
-    <div class="g4 mb">
-      <div class="mc green"><div class="mc-label"><span class="dot" style="background:var(--a1)"></span>Ingreso</div><div class="mc-val c-green" id="d-ing">$0</div><div class="mc-sub">esta quincena</div></div>
-      <div class="mc red"><div class="mc-label"><span class="dot" style="background:var(--a3)"></span>Gastado</div><div class="mc-val c-red" id="d-gas">$0</div><div class="mc-sub" id="d-pgc">0% del ingreso</div></div>
-      <div class="mc blue"><div class="mc-label"><span class="dot" style="background:var(--a4)"></span>Ahorro</div><div class="mc-val c-blue" id="d-aho">$0</div><div class="mc-sub">registrado</div></div>
-      <div class="mc yellow"><div class="mc-label"><span class="dot" style="background:var(--a2)"></span>Hormiga 🐜</div><div class="mc-val c-yellow" id="d-hor">$0</div><div class="mc-sub" id="d-phc">0% del ingreso</div></div>
-    </div>
-    
-    <div class="g2 mb">
-      <div class="card"><div class="ct">Presupuesto quincenal</div><div id="d-bud"><div class="emp"><span class="emp-icon">◎</span>Configura tu quincena para ver la distribución</div></div></div>
-      <div class="card"><div class="ct">Gastos Hormiga 🐜</div><div id="d-ant"></div><div id="d-ante" class="emp" style="padding:16px 0"><span style="font-size:24px;display:block;margin-bottom:6px;opacity:.4">🐜</span>Sin gastos hormiga registrados</div></div>
+    <div class="card mb">
+      <div class="ct">📊 Resumen del período</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:18px;">
+        <div style="text-align:center; padding:12px 8px; background:rgba(0,220,130,.06); border:1px solid rgba(0,220,130,.18); border-radius:10px;">
+          <div style="font-size:9px; font-weight:700; color:var(--t3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:5px;">Ingreso</div>
+          <div style="font-family:var(--fm); font-weight:800; font-size:16px; color:var(--a1); letter-spacing:-0.5px;" id="d-ing">$0</div>
+        </div>
+        <div style="text-align:center; padding:12px 8px; background:rgba(255,107,53,.06); border:1px solid rgba(255,107,53,.18); border-radius:10px;">
+          <div style="font-size:9px; font-weight:700; color:var(--t3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:5px;">Gastado</div>
+          <div style="font-family:var(--fm); font-weight:800; font-size:16px; color:var(--a3); letter-spacing:-0.5px;" id="d-gas">$0</div>
+          <div style="font-size:10px; color:var(--t3); margin-top:2px;" id="d-pgc">0%</div>
+        </div>
+        <div style="text-align:center; padding:12px 8px; background:rgba(59,158,255,.06); border:1px solid rgba(59,158,255,.18); border-radius:10px;">
+          <div style="font-size:9px; font-weight:700; color:var(--t3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:5px;">Ahorrado</div>
+          <div style="font-family:var(--fm); font-weight:800; font-size:16px; color:var(--a4); letter-spacing:-0.5px;" id="d-aho">$0</div>
+        </div>
+      </div>
+      <div id="d-bud"><div class="emp" style="padding:12px;"><span class="emp-icon" style="font-size:24px;">📋</span>Planifica tu quincena y empieza a controlar tu plata<br><button class="btn bp bsm" onclick="go('quin')" style="margin-top:10px;">Ir a Planificar →</button></div></div>
+      <div style="margin-top:14px; padding:12px 14px; background:rgba(121,85,72,.06); border:1px solid rgba(121,85,72,.18); border-radius:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:11px; font-weight:700; color:#a1887f; text-transform:uppercase; letter-spacing:.5px;">🐜 Gastos Hormiga</span>
+          <div style="text-align:right;">
+            <div style="font-family:var(--fm); font-weight:800; font-size:16px; color:#a1887f;" id="d-hor">$0</div>
+            <div style="font-size:10px; color:var(--t3);" id="d-phc">0% del ingreso</div>
+          </div>
+        </div>
+        <div style="height:6px; background:rgba(121,85,72,.15); border-radius:999px; overflow:hidden;">
+          <div id="d-hor-barra" style="height:100%; border-radius:999px; background:#a1887f; width:0%; transition:width .6s cubic-bezier(.4,0,.2,1);"></div>
+        </div>
+      </div>
+      <div style="display:none" id="d-ant"></div>
+      <div style="display:none" id="d-ante"></div>
     </div>
 
     <div class="g2 mb">
       <div class="card" id="card-fondo-emergencia">
         <div class="fb mb"><div style="display:flex; align-items:center; gap:10px;"><span class="ct" style="margin:0">🛡️ Fondo de Emergencia</span><button class="btn bg bsm" onclick="openM('m-fondo-emergencia')">+ Abonar</button></div><div class="tm" id="fe-meses-cobertura">0.0 meses cubiertos</div></div>
+        <div style="background:rgba(0,220,130,.05); border:1px solid rgba(0,220,130,.15); border-radius:8px; padding:10px 12px; margin-bottom:14px; font-size:11px; color:var(--t2); line-height:1.6;">
+          💡 <strong>¿Para qué sirve?</strong> Es plata apartada que no tocas, solo para una urgencia real: una enfermedad, perder el trabajo o que se dañe el carro. La meta es tener lista la plata de 3 a 6 meses para no tener que endeudarte si algo malo pasa.
+        </div>
         <div class="pw" style="height:10px; margin-bottom:14px;"><div class="pf" id="fe-barra-progreso" style="width: 0%; background: var(--a1);"></div></div>
         <div class="fb">
           <div><div class="tm">Dinero Guardado</div><div class="mono" style="font-size:22px; font-weight:700; color:var(--a1);" id="fe-dinero-actual">$0</div></div>
@@ -169,15 +193,18 @@
     <div class="g2">
       <div style="display: flex; flex-direction: column; gap: 14px;">
         
-        <div class="card" style="background: linear-gradient(135deg, rgba(0,220,130,.1), rgba(0,229,204,.05)); border-color: rgba(0,220,130,.25); padding: 24px;">
-          <div class="ct" style="color:var(--a1); margin-bottom:8px;">💰 Capital Total Disponible</div>
-          <div class="mc-val" id="q-total-disp" style="font-size:36px; color:var(--a1)">$0</div>
-          <div class="tm" style="margin-top:10px; line-height:1.5;">Este es el dinero real (Efectivo + Cuentas). Agrega o edita tus cuentas desde el Dashboard.</div>
+        <div class="card accent-green">
+          <div class="ct">💡 ¿De dónde sale este número?</div>
+          <div class="tm" style="line-height:1.6;">Este es tu dinero real: efectivo en mano más lo que tienes en tus cuentas. Para editarlo, ve al Dashboard y usa el botón ✏️ en cada tarjeta.</div>
+          <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center;">
+            <span class="tm">Total disponible ahora:</span>
+            <span style="font-family:var(--fm); font-weight:800; font-size:20px; color:var(--a1);" id="q-total-disp">$0</span>
+          </div>
         </div>
         
         <div class="card">
-          <div class="ct">Frecuencia del Presupuesto</div>
-          <p class="tm mb">¿Para cuánto tiempo debe rendirte este dinero?</p>
+          <div class="ct">¿Para cuánto tiempo es esta plata?</div>
+          <p class="tm mb">Elige si vas a manejar quincenas o el mes completo.</p>
           <div class="qtabs" role="tablist" aria-label="Frecuencia del presupuesto">
             <div class="qtab active" onclick="setPer('q1', this)" role="tab" tabindex="0" aria-selected="true"><span>Quincena</span><strong>Días 1 – 15</strong></div>
             <div class="qtab" onclick="setPer('q2', this)" role="tab" tabindex="-1" aria-selected="false"><span>Quincena</span><strong>Días 16 – 31</strong></div>
@@ -232,147 +259,165 @@
     </div>
   </section>
 
-  <section id="sec-gast" class="sec">
-      <div class="sh">
-        <div class="sh-left">
-          <div class="sh-icon">💸</div>
-          <div>
-            <h1 class="st">Gastos</h1>
-            <div class="ss">Registra lo que gastas y controla tus compromisos fijos</div>
-          </div>
+    <section id="sec-gast" class="sec">
+    <div class="sh">
+      <div class="sh-left">
+        <div class="sh-icon yellow">💸</div>
+        <div><h1 class="st">Gastos</h1><div class="ss">Registra lo que gastas y controla tus compromisos fijos</div></div>
+      </div>
+    </div>
+    <div id="gast-tab-periodo" role="tabpanel" aria-label="Gastos del período">
+
+      <!-- BARRA DE RESUMEN (ancho completo) -->
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:14px;">
+        <div class="card accent-red" style="padding:14px; text-align:center;">
+          <div class="ct" style="margin-bottom:6px;">Total fijos/mes</div>
+          <div class="mc-val c-red" id="fi-tot" style="font-size:20px;">$0</div>
+        </div>
+        <div class="card accent-green" style="padding:14px; text-align:center;">
+          <div class="ct" style="margin-bottom:6px;">Pagados este mes</div>
+          <div class="mc-val c-green" id="fi-pag" style="font-size:20px;">$0</div>
+          <div class="mc-sub"><span id="fi-np">0</span> de <span id="fi-nt">0</span></div>
+        </div>
+        <div class="card" style="padding:14px; text-align:center; border-color:rgba(255,214,10,.2); background:linear-gradient(135deg,rgba(255,214,10,.04),var(--s1));">
+          <div class="ct" style="margin-bottom:6px;">Pendiente</div>
+          <div class="mc-val" id="fi-pend" style="font-size:20px; color:var(--a2);">$0</div>
+          <div class="mc-sub" id="fi-pend-txt">por cubrir</div>
         </div>
       </div>
 
-      <div class="gast-tabs" role="tablist" aria-label="Tipo de gasto">
-        <button class="gast-tab active" data-tab="periodo" onclick="setGastTab('periodo')" role="tab" aria-selected="true">💸 Del período</button>
-        <button class="gast-tab" data-tab="recurrentes" onclick="setGastTab('recurrentes')" role="tab" aria-selected="false">📌 Recurrentes</button>
-      </div>
-
-      <div id="gast-tab-periodo" role="tabpanel" aria-label="Gastos del período">
-      <div class="g2" style="align-items:flex-start">
-        
-        <div class="card">
-          <div class="sh" style="margin-bottom:16px;">
-            <div class="st" style="font-size:16px;">NUEVO GASTO</div>
-          </div>
-          
-          <div class="fg">
-            <label>Descripción</label>
-            <input type="text" id="g-de" placeholder="Ej: Tinto, domicilio, mercado, recarga...">
-          </div>
-          
-          <div class="fr">
-            <div class="fg">
-              <label>Monto (COP)</label>
-              <input type="number" id="g-mo" placeholder="Ej: 35000" oninput="actualizarSemaforo()" onchange="actualizarSemaforo()">
-            </div>
-            <div class="fg">
-              <label>Tipo de Gasto</label>
-              <select id="g-ti" onchange="actualizarSemaforo(); calcularImpactoHormiga()">
-                <option value="necesidad">Necesidad (50%)</option>
-                <option value="deseo">Deseo (30%)</option>
-                <option value="hormiga">Hormiga 🐜 (Fuga de dinero)</option>
-                <option value="ahorro">Ahorro (20%)</option>
-              </select>
-            </div>
-          </div>
-          
-          <div class="fr">
-            <div class="fg">
-              <label>Categoría</label>
-              <select id="g-ca">
-                <option value="alimentacion">🍽️ Alimentación</option>
-                <option value="transporte">🚌 Transporte</option>
-                <option value="vivienda">🏠 Vivienda / Servicios</option>
-                <option value="entretenimiento">🎬 Entretenimiento</option>
-                <option value="salud">🏥 Salud</option>
-                <option value="ropa">👕 Ropa / Compras</option>
-                <option value="deudas">📉 Deudas</option>
-                <option value="otro">📦 Otro</option>
-              </select>
-            </div>
-            <div class="fg">
-              <label>Fondo de pago</label>
-              <div class="fund-select" id="g-fo-wrap">
-                <input type="hidden" id="g-fo" value="efectivo">
-                <div class="fund-sel-trigger" onclick="toggleFundSelect('g-fo')">
-                  <span class="fund-sel-icon">💵</span>
-                  <div class="fund-sel-info">
-                    <div class="fund-sel-name">Efectivo</div>
-                    <div class="fund-sel-bal">Disponible: $0</div>
-                  </div>
-                  <span class="fund-sel-arrow">▾</span>
-                </div>
-                <div class="fund-sel-opts"></div>
+      <div class="gast-split-grid">
+        <div class="gast-col">
+          <div class="card" id="form-gasto-card">
+            <button class="form-gasto-header" onclick="toggleFormGasto()" aria-expanded="false" aria-controls="form-gasto-body" style="width:100%; background:none; border:none; padding:2px 0; display:flex; justify-content:space-between; align-items:center; cursor:pointer; text-align:left; font-family:var(--ff);">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div id="form-gasto-icon" style="width:30px; height:30px; border-radius:8px; background:rgba(0,220,130,.15); border:1px solid rgba(0,220,130,.3); display:flex; align-items:center; justify-content:center; font-size:15px;" aria-hidden="true">➕</div>
+                <span class="st" style="font-size:15px; color:var(--t1);">Nuevo gasto</span>
               </div>
+              <span class="form-gasto-arrow" aria-hidden="true">▾</span>
+            </button>
+            <div id="form-gasto-body">
+              <div class="fg"><label>Descripción</label><input type="text" id="g-de" placeholder="Ej: Tinto, domicilio, mercado, recarga..."></div>
+              <div class="fr">
+                <div class="fg"><label>Monto (COP)</label><input type="number" id="g-mo" placeholder="Ej: 35000" inputmode="decimal" oninput="actualizarSemaforo()" onchange="actualizarSemaforo()"></div>
+                <div class="fg"><label>¿Para qué es?</label>
+                  <select id="g-ti" onchange="actualizarSemaforo(); calcularImpactoHormiga()">
+                    <option value="necesidad">Necesidad — arriendo, comida, servicios</option>
+                    <option value="deseo">Antojo — ropa, salidas, entretenimiento</option>
+                    <option value="hormiga">Hormiga 🐜 — gastos chiquiticos que se acumulan</option>
+                    <option value="ahorro">Ahorro — me lo pago a mí mismo primero</option>
+                  </select>
+                </div>
+              </div>
+              <div class="fr">
+                <div class="fg"><label>Categoría</label>
+                  <select id="g-ca">
+                    <option value="alimentacion">🍽️ Alimentación</option>
+                    <option value="transporte">🚌 Transporte</option>
+                    <option value="vivienda">🏠 Vivienda / Servicios</option>
+                    <option value="entretenimiento">🎬 Entretenimiento</option>
+                    <option value="salud">🏥 Salud</option>
+                    <option value="ropa">👕 Ropa / Compras</option>
+                    <option value="deudas">📉 Deudas</option>
+                    <option value="otro">📦 Otro</option>
+                  </select>
+                </div>
+                <div class="fg"><label>¿Con qué pagas?</label>
+                  <div class="fund-select" id="g-fo-wrap">
+                    <input type="hidden" id="g-fo" value="efectivo">
+                    <div class="fund-sel-trigger" onclick="toggleFundSelect('g-fo')">
+                      <span class="fund-sel-icon">💵</span>
+                      <div class="fund-sel-info"><div class="fund-sel-name">Efectivo</div><div class="fund-sel-bal">Disponible: $0</div></div>
+                      <span class="fund-sel-arrow">▾</span>
+                    </div>
+                    <div class="fund-sel-opts"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="fr">
+                <div class="fg"><label>Fecha</label><input type="date" id="g-fe"></div>
+                <div class="fg ckrow" style="margin-bottom:0; display:flex; align-items:center;">
+                  <input type="checkbox" id="g-4k" onchange="prev4k()">
+                  <label for="g-4k" style="margin:0; font-size:13px;">Aplica 4x1000</label>
+                </div>
+              </div>
+              <div id="p4k" style="display:none; font-size:12px; margin-top:10px; margin-bottom:10px; color:var(--t3);"></div>
+              <div id="g-semaforo" role="status" aria-live="polite" style="display:none; padding:12px; border-radius:8px; margin-top:10px; margin-bottom:10px; font-size:12px;"></div>
+              <div id="g-hormiga-impact" style="display:none; padding:12px; border-radius:8px; background:rgba(121,85,72,.1); border:1px solid rgba(121,85,72,.3); color:#a1887f; margin-top:10px; margin-bottom:10px; font-size:12px;"></div>
+              <button class="btn bp bfw" onclick="agregarGasto()" style="margin-top:14px;">Registrar gasto →</button>
             </div>
           </div>
-          
-          <div class="fr">
-            <div class="fg">
-              <label>Fecha</label>
-              <input type="date" id="g-fe">
+
+          <div class="card">
+            <div class="fb" style="margin-bottom:10px;">
+              <div class="st" style="font-size:16px;">Lo que has gastado</div>
+              <div class="srch"><span>🔍</span><input type="text" id="g-search" placeholder="Buscar..." aria-label="Buscar en tus gastos" onkeyup="renderGastos()"></div>
             </div>
-            <div class="fg ckrow" style="margin-bottom:0; display:flex; align-items:center;">
-              <input type="checkbox" id="g-4k" onchange="prev4k()">
-              <label for="g-4k" style="margin:0; font-size:13px;">Aplica 4x1000</label>
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;" role="group" aria-label="Filtrar por tipo">
+              <button onclick="setFiltroGasto('',this)" class="gfil active-fil pill pg" aria-pressed="true" style="cursor:pointer; padding:5px 12px; font-size:11px; font-weight:800; border:none;">Todos</button>
+              <button onclick="setFiltroGasto('necesidad',this)" class="gfil pill pb" aria-pressed="false" style="cursor:pointer; padding:5px 12px; font-size:11px; font-weight:600; border:none; opacity:.65;">Necesidad</button>
+              <button onclick="setFiltroGasto('deseo',this)" class="gfil pill py" aria-pressed="false" style="cursor:pointer; padding:5px 12px; font-size:11px; font-weight:600; border:none; opacity:.65;">Deseo</button>
+              <button onclick="setFiltroGasto('hormiga',this)" class="gfil pill" aria-pressed="false" style="cursor:pointer; padding:5px 12px; font-size:11px; font-weight:600; border:none; opacity:.65; background:rgba(121,85,72,.12); color:#a1887f; border:1px solid rgba(121,85,72,.2);">🐜 Hormiga</button>
+              <button onclick="setFiltroGasto('ahorro',this)" class="gfil pill pg" aria-pressed="false" style="cursor:pointer; padding:5px 12px; font-size:11px; font-weight:600; border:none; opacity:.65;">Ahorro</button>
+              <button onclick="setFiltroGasto('4x1000',this)" class="gfil pill pt" aria-pressed="false" style="cursor:pointer; padding:5px 12px; font-size:11px; font-weight:600; border:none; opacity:.65;">4×1000</button>
+            </div>
+            <div class="t-w">
+              <table>
+                <thead><tr><th>FECHA</th><th>DESCRIPCIÓN</th><th>CATEGORÍA</th><th>TIPO</th><th>FONDO</th><th><span aria-hidden="true">🐜</span><span class="sr-only">Gasto hormiga</span></th><th><span aria-hidden="true">4×1000</span><span class="sr-only">Aplica impuesto 4 por mil</span></th><th class="ac">MONTO</th><th>ACCIONES</th></tr></thead>
+                <tbody id="g-tab"></tbody>
+              </table>
+            </div>
+            <div style="margin-top:16px; text-align:right;">
+              <button class="btn bd" onclick="limpiarGastos()">Limpiar período</button>
             </div>
           </div>
-          
-          <div id="p4k" style="display:none; font-size:12px; margin-top:10px; margin-bottom:10px; color:var(--t3);"></div>
-          <div id="g-semaforo" style="display:none; padding:12px; border-radius:8px; margin-top:10px; margin-bottom:10px; font-size:12px;"></div>
-          <div id="g-hormiga-impact" style="display:none; padding:12px; border-radius:8px; background:rgba(121,85,72,.1); border:1px solid rgba(121,85,72,.3); color:#a1887f; margin-top:10px; margin-bottom:10px; font-size:12px;"></div>
-          
-          <button class="btn bp bfw" onclick="agregarGasto()" style="margin-top: 14px;">Registrar gasto →</button>
         </div>
 
-        <div class="card">
-          <div class="fb" style="margin-bottom:16px;">
-            <div class="st" style="font-size:16px;">HISTORIAL DEL PERÍODO</div>
-            <div class="srch">
-              <span>🔍</span>
-              <input type="text" id="g-search" placeholder="Buscar..." onkeyup="renderGastos()">
+        <div class="gast-col">
+
+          <div class="card" id="form-fijo-card">
+            <button onclick="toggleFijoInline()" aria-expanded="false" aria-controls="form-fijo-body" style="width:100%; background:none; border:none; padding:2px 0; display:flex; justify-content:space-between; align-items:center; cursor:pointer; text-align:left; font-family:var(--ff);">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div id="form-fijo-icon" style="width:30px; height:30px; border-radius:8px; background:rgba(255,214,10,.15); border:1px solid rgba(255,214,10,.3); display:flex; align-items:center; justify-content:center; font-size:15px;" aria-hidden="true">📌</div>
+                <span class="st" style="font-size:15px; color:var(--t1);">Nuevo fijo</span>
+              </div>
+              <span id="form-fijo-arrow" aria-hidden="true" style="color:var(--t3); font-size:18px; transition:transform .25s; display:inline-block;">▾</span>
+            </button>
+            <div id="form-fijo-body" style="display:none; border-top:1px solid var(--b1); margin-top:14px; padding-top:16px;">
+              <div class="fg"><label>Nombre del gasto</label><input type="text" id="gf-no" placeholder="Ej: Arriendo, Netflix, Gym..."></div>
+              <div class="fr">
+                <div class="fg"><label>Monto (COP)</label><input type="number" id="gf-mn" placeholder="Ej: 500000" inputmode="decimal"></div>
+                <div class="fg"><label>¿Cada cuánto lo pagas?</label><select id="gf-pe"><option value="mensual">Mensual</option><option value="quincenal">Quincenal</option></select></div>
+              </div>
+              <div class="fr">
+                <div class="fg"><label>Tipo de gasto</label><select id="gf-ti"><option value="necesidad">🏠 Necesidad</option><option value="deseo">✨ Antojo / Gusto</option></select></div>
+                <div class="fg"><label>Categoría</label><select id="gf-ca"><option value="vivienda">🏠 Vivienda</option><option value="servicios">💡 Servicios</option><option value="entretenimiento">🎬 Entretenimiento</option><option value="transporte">🚌 Transporte</option><option value="salud">🏥 Salud</option><option value="alimentacion">🍽️ Alimentación</option><option value="otro">📦 Otro</option></select></div>
+              </div>
+              <div class="fr">
+                <div class="fg"><label>Día de pago</label>
+                  <div class="day-picker" id="dp-gf-di">
+                    <input type="hidden" id="gf-di" value="">
+                    <button type="button" class="day-pick-trigger" onclick="toggleDayPicker('gf-di')">
+                      <span class="day-pick-val">Selecciona el día</span>
+                      <span style="font-size:12px; color:var(--t3);">▾</span>
+                    </button>
+                    <div class="day-pick-grid"></div>
+                  </div>
+                </div>
+                <div class="fg"><label>¿Con qué pagas?</label><select id="gf-fo"><option value="banco">🏦 Banco</option><option value="efectivo">💵 Efectivo</option></select></div>
+              </div>
+              <div class="fg ckrow" style="margin-bottom:14px;">
+                <input type="checkbox" id="gf-4k">
+                <label for="gf-4k" style="margin:0; font-size:13px; cursor:pointer;">Aplica 4×1000 GMF</label>
+              </div>
+              <button class="btn bp bfw" onclick="guardarFijo()">Guardar gasto fijo →</button>
             </div>
           </div>
-          <div class="t-w">
-            <table>
-              <thead>
-                <tr>
-                  <th>FECHA</th>
-                  <th>DESCRIPCIÓN</th>
-                  <th>CATEGORÍA</th>
-                  <th>TIPO</th>
-                  <th>FONDO</th>
-                  <th>🐜</th>
-                  <th>GMF</th>
-                  <th class="ac">MONTO</th>
-                  <th>ACCIONES</th>
-                </tr>
-              </thead>
-              <tbody id="g-tab"></tbody>
-            </table>
-          </div>
-          <div style="margin-top:16px;text-align:right">
-            <button class="btn bd" onclick="limpiarGastos()">Limpiar período</button>
-          </div>
+
+          <div id="fi-lst"><div class="emp"><span class="emp-icon">◉</span>Sin gastos fijos.</div></div>
         </div>
-
       </div>
-    </div><!-- fin gast-tab-periodo -->
-
-    <!-- PESTAÑA: RECURRENTES -->
-    <div id="gast-tab-recurrentes" style="display:none;" role="tabpanel" aria-label="Gastos recurrentes">
-      <div class="sh" style="margin-bottom:16px;">
-        <div></div>
-        <button class="btn bp bsm" onclick="openM('m-fijo')">+ Nuevo fijo</button>
-      </div>
-      <div class="g2 mb">
-        <div class="card accent-red"><div class="ct">Total fijos mensuales</div><div class="mc-val c-red" id="fi-tot">$0</div><div class="mc-sub">comprometido cada mes</div></div>
-        <div class="card accent-green"><div class="ct">Pagados este mes</div><div class="mc-val c-green" id="fi-pag">$0</div><div class="mc-sub"><span id="fi-np">0</span> de <span id="fi-nt">0</span> compromisos</div></div>
-      </div>
-      <div id="fi-lst"><div class="emp"><span class="emp-icon">◉</span>Sin gastos fijos.</div></div>
-    </div><!-- fin gast-tab-recurrentes -->
-
+    </div>
   </section>
 
   <section class="sec" id="sec-objetivos">
@@ -382,6 +427,7 @@
     </div>
     <div class="al alb mb" style="font-size:11px"><span class="al-icon">💡</span>Crea un <strong>Ahorro Simple</strong> para alcancías, laptops o imprevistos. Crea un <strong>Evento Planeado</strong> si necesitas ahorrar primero y luego registrar los gastos durante el viaje o cumpleaños.</div>
     <div id="obj-lst"><div class="emp"><span class="emp-icon">🎯</span>Sin objetivos activos. ¡Crea el primero!</div></div>
+
   </section>
 
   <section class="sec" id="sec-inve">
@@ -474,25 +520,6 @@
             <div class="fg"><label>Plazo (Meses)</label><input type="number" id="ic-mes" value="60" oninput="cIC()"></div>
           </div>
           <div class="cres" id="ic-res"></div>
-        </div>
-      </div>
-
-      <div class="calc-c">
-        <div class="calc-header" onclick="toggleCalc('meta')">
-          <div class="calc-icon" style="background:rgba(157,115,235,.12);border:1px solid rgba(157,115,235,.2)">🎯</div>
-          <div class="calc-info"><div class="calc-t">¿Cuánto ahorrar por quincena para mi meta?</div></div><span id="meta-arr" style="color:var(--t3);font-size:18px">▾</span>
-        </div>
-        <div class="calc-body closed" id="meta-body">
-          <div class="calc-sep"></div>
-          <div style="background:rgba(157,115,235,.05); border:1px solid rgba(157,115,235,.2); padding:12px; border-radius:8px; margin-bottom:16px; font-size:12px; color:var(--t2); line-height:1.5;">
-            <strong>🎯 Planea tu ahorro quincena a quincena.</strong> Dile a Finko cuánto cuesta lo que quieres, cuánto ya tienes guardado y cuándo lo necesitas. Te dirá exactamente cuánto apartar cada quincena.
-          </div>
-          <div class="fr">
-            <div class="fg"><label for="ma-tot">¿Cuánto cuesta la meta? (COP)</label><input type="number" id="ma-tot" placeholder="Ej: 3000000" oninput="cMeta()"></div>
-            <div class="fg"><label for="ma-ten">¿Cuánto ya tienes? (COP)</label><input type="number" id="ma-ten" placeholder="Ej: 500000" oninput="cMeta()"></div>
-          </div>
-          <div class="fg"><label for="ma-fe">¿Para cuándo la necesitas?</label><input type="date" id="ma-fe" oninput="cMeta()"></div>
-          <div class="cres" id="ma-res"></div>
         </div>
       </div>
 
@@ -592,9 +619,11 @@
       <div id="de-avisos" style="border-top:1px solid var(--b1);"></div>
     </div>
 
+    <div class="card mb" id="deu-fijos-resumen" style="display:none;"></div>
+
     <div class="card mb" style="background:linear-gradient(135deg,rgba(59,158,255,.04),var(--s1)); border-color:rgba(59,158,255,.3);">
       <div class="ct">🧠 Coach de Estrategia de Pagos</div>
-      <p class="tm mb" style="line-height:1.6">Elige cómo quieres que Finko ordene tus deudas para saber a cuál inyectarle dinero extra.</p>
+      <p class="tm" style="line-height:1.5; font-size:11px; margin-bottom:12px;">Elige el método y Finko ordena automáticamente cuál deuda atacar primero con dinero extra.</p>
       <div class="fr" style="gap:10px">
         <button class="btn bp" id="btn-ava" onclick="setModoDeuda('avalancha')" style="flex:1;">🔥 Método Avalancha</button>
         <button class="btn bg" id="btn-bola" onclick="setModoDeuda('bola')" style="flex:1;">⛄ Método Bola de Nieve</button>
@@ -621,12 +650,12 @@
     </div>
 
     <div style="background:var(--s1); border:1px solid var(--b1); border-radius:16px; margin-bottom:16px; overflow:hidden;">
-      <div style="display:flex; flex-wrap:wrap; align-items:stretch;">
+      <div class="agen-stats-row" style="display:flex; flex-wrap:wrap; align-items:stretch;">
 
-        <div style="flex:1; min-width:160px; padding:20px 24px; border-right:1px solid var(--b1);">
-          <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
-            <div style="width:32px; height:32px; border-radius:8px; background:rgba(255,214,10,.1); border:1px solid rgba(255,214,10,.2); display:flex; align-items:center; justify-content:center; font-size:16px;">💸</div>
-            <span style="font-size:10px; font-weight:700; color:var(--t3); text-transform:uppercase; letter-spacing:1px;">Total pendiente</span>
+        <div style="flex:1; min-width:140px; padding:14px 18px; border-right:1px solid var(--b1);">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+            <div style="width:28px; height:28px; border-radius:8px; background:rgba(255,214,10,.1); border:1px solid rgba(255,214,10,.2); display:flex; align-items:center; justify-content:center; font-size:14px;">💸</div>
+            <span style="font-size:9px; font-weight:700; color:var(--t3); text-transform:uppercase; letter-spacing:1px;">Total pendiente</span>
           </div>
           <div style="font-family:var(--fm); font-size:26px; font-weight:800; color:var(--a2); letter-spacing:-1px;" id="ag-tot-monto">$0</div>
           <div style="font-size:11px; color:var(--t3); margin-top:6px;">por pagar en total</div>
@@ -646,8 +675,9 @@
             <div style="width:32px; height:32px; border-radius:8px; background:rgba(255,68,68,.1); border:1px solid rgba(255,68,68,.2); display:flex; align-items:center; justify-content:center; font-size:16px;">🚨</div>
             <span style="font-size:10px; font-weight:700; color:var(--t3); text-transform:uppercase; letter-spacing:1px;">Pagos vencidos</span>
           </div>
-          <div style="font-family:var(--fm); font-size:26px; font-weight:800; color:var(--a1); letter-spacing:-1px;" id="ag-vencidos" aria-live="polite" aria-atomic="true">0</div>
+          <div style="font-family:var(--fm); font-size:26px; font-weight:800; color:var(--a1); letter-spacing:-1px;" id="ag-vencidos-monto" aria-live="polite" aria-atomic="true">$0</div>
           <div style="font-size:11px; color:var(--t3); margin-top:6px;" id="ag-vencidos-msg">sin pagos vencidos ✅</div>
+          <div style="font-size:10px; color:var(--t3); margin-top:2px;" id="ag-vencidos-count"></div>
         </div>
 
       </div>
@@ -1113,8 +1143,6 @@
 
   </div>
 </div>
-
-<div class="modal-ov" id="m-fijo" role="dialog" aria-modal="true"><div class="modal"><div class="fb mb"><div class="mtit">Nuevo Gasto Fijo 📌</div><button class="mclose" onclick="closeM('m-fijo')">×</button></div><div class="fg"><label>Nombre</label><input type="text" id="gf-no"></div><div class="fr"><div class="fg"><label>Monto</label><input type="number" id="gf-mn"></div><div class="fg"><label>Día de pago</label><input type="number" id="gf-di"></div></div><div class="fr"><div class="fg"><label>Periodicidad</label><select id="gf-pe"><option value="mensual">Mensual</option><option value="quincenal">Quincenal</option></select></div><div class="fg"><label>Tipo</label><select id="gf-ti"><option value="necesidad">Necesidad</option><option value="deseo">Deseo</option></select></div></div><div class="fr"><div class="fg"><label>Categoría</label><select id="gf-ca"><option value="vivienda">🏠 Vivienda</option><option value="servicios">💡 Servicios</option><option value="otro">📦 Otro</option></select></div><div class="fg"><label>Fondo</label><select id="gf-fo"><option value="banco">🏦 Banco</option><option value="efectivo">💵 Efectivo</option></select></div></div><div class="fg"><div class="ckrow" onclick="document.getElementById('gf-4k').checked=!document.getElementById('gf-4k').checked"><input type="checkbox" id="gf-4k" onclick="event.stopPropagation()"><label>Aplica 4×1000</label></div></div><button class="btn bp bfw" onclick="guardarFijo()">Agregar fijo</button></div></div>
 
 <div class="modal-ov" id="m-pago" role="dialog" aria-modal="true">
   <div class="modal">
