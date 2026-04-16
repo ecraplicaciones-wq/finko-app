@@ -1,0 +1,545 @@
+import { S }    from './state.js';
+import { save } from './storage.js';
+import { f, he, hoy, mesStr, setEl, setHtml, openM, closeM, showAlert, showConfirm } from './utils.js';
+import { TASA_USURA_EA } from './constants.js';
+import { renderSmart, updSaldo, totalCuentas } from './render.js';
+
+// ─── GUARDAR ─────────────────────────────────────────────────────────────────
+export async function guardarDeuda() {
+  const no = document.getElementById('dn-no').value.trim();
+  const to = +document.getElementById('dn-to').value;
+  const cu = +document.getElementById('dn-cu').value;
+  if (!no || !to || !cu) { await showAlert('Completa nombre, saldo y cuota.', 'Requerido'); return; }
+
+  S.deudas.push({
+    id:           Date.now(),
+    nombre:       no,
+    total:        to,
+    cuota:        cu,
+    periodicidad: document.getElementById('dn-pe')?.value || 'mensual',
+    tasa:         +document.getElementById('dn-ta')?.value || 0,
+    tipo:         document.getElementById('dn-ti')?.value || 'otro',
+    diaPago:      +document.getElementById('dn-dia')?.value || 1,
+    pagado:       0
+  });
+
+  ['dn-no', 'dn-to', 'dn-cu', 'dn-ta', 'dn-dia'].forEach(i => {
+    const e = document.getElementById(i); if (e) e.value = '';
+  });
+  closeM('m-deu'); save(); renderSmart(['deudas']);
+}
+
+// ─── ESTRATEGIA: AVALANCHA / BOLA DE NIEVE ───────────────────────────────────
+export function setModoDeuda(m) {
+  S.modoDeuda = m;
+  const btnAva  = document.getElementById('btn-ava');
+  const btnBola = document.getElementById('btn-bola');
+  if (btnAva)  btnAva.className  = m === 'avalancha' ? 'btn bp' : 'btn bg';
+  if (btnBola) btnBola.className = m === 'bola'      ? 'btn bp' : 'btn bg';
+
+  const lista = document.getElementById('de-lst');
+  if (lista) {
+    lista.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+    lista.style.opacity = '0'; lista.style.transform = 'translateY(6px)';
+    setTimeout(() => {
+      save(); renderDeudas();
+      requestAnimationFrame(() => { lista.style.opacity = '1'; lista.style.transform = 'translateY(0)'; });
+    }, 300);
+  } else { save(); renderDeudas(); }
+}
+
+// ─── MORA REAL ───────────────────────────────────────────────────────────────
+function _obtenerAlertaMora(deuda) {
+  const diaPago = deuda.diaPago || 1;
+  const hoyDate = new Date(); hoyDate.setHours(0, 0, 0, 0);
+  const ultimoDiaMes = new Date(hoyDate.getFullYear(), hoyDate.getMonth() + 1, 0).getDate();
+  const diaReal = Math.min(diaPago, ultimoDiaMes);
+  const fechaLimite = new Date(hoyDate.getFullYear(), hoyDate.getMonth(), diaReal);
+
+  if (hoyDate > fechaLimite) {
+    const mesPago = hoyDate.toISOString().substring(0, 7);
+    const pagadoEsteMes = S.gastos.find(g =>
+      g.cat === 'deudas' && g.fecha.startsWith(mesPago) && g.desc.includes(deuda.nombre));
+    if (pagadoEsteMes || (deuda.total - deuda.pagado <= 0)) return '';
+
+    const diasMora = Math.floor((hoyDate - fechaLimite) / 86_400_000);
+    if (diasMora <= 0) return '';
+    if (diasMora < 30)  return `<div class="alerta-mora alerta-leve" role="status" aria-live="polite" style="margin-top:10px; padding:10px; background:rgba(255,214,10,.1); color:var(--a2); border-radius:8px; border:1px solid rgba(255,214,10,.3); font-size:12px;"><span aria-hidden="true">⏳</span> <strong>Llevas ${diasMora} día${diasMora !== 1 ? 's' : ''} sin cubrir esta cuota.</strong> Entre más esperes, más se acumulan los intereses de mora.</div>`;
+    if (diasMora < 90)  return `<div class="alerta-mora alerta-media" role="alert" aria-live="assertive" style="margin-top:10px; padding:10px; background:rgba(255,107,53,.1); color:var(--a3); border-radius:8px; border:1px solid rgba(255,107,53,.3); font-size:12px;"><span aria-hidden="true">⚠️</span> <strong>${diasMora} días sin pagar.</strong> Tu historial en Datacrédito puede estar siendo afectado. Habla con el banco antes de que sea peor.</div>`;
+    return `<div class="alerta-mora alerta-grave" role="alert" aria-live="assertive" style="margin-top:10px; padding:10px; background:rgba(255,68,68,.1); color:var(--dan); border-radius:8px; border:1px solid rgba(255,68,68,.3); font-size:12px;"><span aria-hidden="true">🚨</span> <strong>¡Cuidado! Llevas ${diasMora} días en mora.</strong> La ley obliga al banco a avisarte con 20 días de anticipación antes de reportarte a Datacrédito (Ley 1266/2008, Art. 13).</div>`;
+  }
+  return '';
+}
+
+// ─── RENDER ──────────────────────────────────────────────────────────────────
+export function renderDeudas() {
+  const sq    = S.deudas.filter(d => d.periodicidad === 'quincenal').reduce((s, d) => s + d.cuota, 0);
+  const sm    = S.deudas.filter(d => d.periodicidad === 'mensual').reduce((s, d) => s + d.cuota, 0);
+  let   cPer  = 0;
+  if (S.tipoPeriodo === 'mensual') cPer = (sq * 2) + sm;
+  else if (S.tipoPeriodo === 'q1') cPer = sq + sm;
+  else                             cPer = sq;
+
+  const totD           = S.deudas.reduce((s, d) => s + Math.max(0, d.total - d.pagado), 0);
+  const cuotaMensual   = (sq * 2) + sm;
+  let   ingresoBase    = S.ingreso > 0 ? S.ingreso : (S.saldos.efectivo + totalCuentas());
+  let   ingresoMensual = (S.tipoPeriodo === 'q1' || S.tipoPeriodo === 'q2') ? ingresoBase * 2 : ingresoBase;
+  const pct            = ingresoMensual > 0 ? Math.round((cuotaMensual / ingresoMensual) * 100) : 0;
+
+  setEl('de-tot', f(totD));
+  setEl('de-cp',  f(cPer));
+
+  // Indicador % del ingreso
+  const pe = document.getElementById('de-pct');
+  const cardPct = document.getElementById('card-pct-ingreso');
+  const cardMsg = document.getElementById('de-pct-msg');
+  if (pe && cardPct) {
+    const cfg = pct > 100
+      ? { badge: `🚨 ${pct}%`, color: 'var(--dan)', bg: 'rgba(255,68,68,.08)', border: 'rgba(255,68,68,.3)', msg: 'Tus deudas cuestan más de lo que ganas. ¡Hay que actuar urgente!' }
+      : pct > 40
+      ? { badge: `⚠️ ${pct}%`, color: 'var(--a2)', bg: 'rgba(255,214,10,.08)', border: 'rgba(255,214,10,.3)', msg: 'Más del 40% de tu plata se va en deudas. Intenta no adquirir más.' }
+      : pct > 0
+      ? { badge: `✅ ${pct}%`, color: 'var(--a1)', bg: 'var(--s1)', border: 'var(--b1)', msg: '¡Tus deudas están bajo control!' }
+      : { badge: '✅ 0%',       color: 'var(--a1)', bg: 'var(--s1)', border: 'var(--b1)', msg: '' };
+
+    pe.innerHTML = cfg.badge.replace(/%/, '<span style="font-size:16px; font-weight:600; margin-left:2px;">%</span>');
+    pe.style.color = cfg.color;
+    cardPct.style.background   = cfg.bg;
+    cardPct.style.borderColor  = cfg.border;
+    if (cardMsg) { cardMsg.textContent = cfg.msg; cardMsg.style.color = cfg.color; }
+  }
+
+  // ── Avisos inteligentes ──
+  _renderAvisosDeudas(pct, totD);
+
+  // ── Fijos pendientes en sección deudas ──
+  window.renderFijos?.(); // dispara _renderFijosEnDeudas dentro de fijos.js
+
+  const el = document.getElementById('de-lst');
+  if (!S.deudas.length) {
+    el.innerHTML = `
+      <div style="text-align:center; padding:48px 20px; background:var(--s1); border-radius:16px; border:1px dashed var(--a1); margin-top:20px;">
+        <div style="font-size:64px; margin-bottom:16px;">🏆</div>
+        <h3 style="color:var(--t1); margin-bottom:8px; font-size:22px;">¡Eres libre de deudas!</h3>
+        <p style="color:var(--t3); font-size:14px; max-width:320px; margin:0 auto; line-height:1.6;">Has alcanzado uno de los logros financieros más importantes. Ahora enfócate en hacer crecer tu dinero.</p>
+      </div>`;
+    return;
+  }
+
+  const modo  = S.modoDeuda || 'avalancha';
+  const btnAva  = document.getElementById('btn-ava');
+  const btnBola = document.getElementById('btn-bola');
+  if (btnAva)  btnAva.className  = modo === 'avalancha' ? 'btn bp' : 'btn bg';
+  if (btnBola) btnBola.className = modo === 'bola'      ? 'btn bp' : 'btn bg';
+
+  // Ordenar según estrategia
+  let copia = [...S.deudas];
+  const msgEl = document.getElementById('deu-coach-msg');
+
+  if (modo === 'avalancha') {
+    copia.sort((a, b) => {
+      const dTasa = (b.tasa || 0) - (a.tasa || 0);
+      if (dTasa !== 0) return dTasa;
+      return (b.total - b.pagado) - (a.total - a.pagado);
+    });
+    if (msgEl) msgEl.innerHTML = `
+      <div style="display:flex; gap:10px; align-items:flex-start;">
+        <span style="font-size:20px; flex-shrink:0;">🔥</span>
+        <div>
+          <div style="font-weight:700; font-size:12px; color:var(--t1); margin-bottom:4px;">Método Avalancha — El más inteligente matemáticamente</div>
+          <div style="font-size:11px; color:var(--t3); line-height:1.6;">Paga el <strong style="color:var(--t2);">mínimo en todas</strong> y mete todo el dinero extra a la deuda con la <strong style="color:var(--dan);">tasa más alta</strong>. Cuando la liquides, ese dinero se suma a la siguiente. Es el método que menos intereses te cobra en total.</div>
+        </div>
+      </div>`;
+  } else {
+    copia.sort((a, b) => {
+      const dSaldo = (a.total - a.pagado) - (b.total - b.pagado);
+      if (dSaldo !== 0) return dSaldo;
+      return (b.tasa || 0) - (a.tasa || 0);
+    });
+    if (msgEl) msgEl.innerHTML = `
+      <div style="display:flex; gap:10px; align-items:flex-start;">
+        <span style="font-size:20px; flex-shrink:0;">⛄</span>
+        <div>
+          <div style="font-weight:700; font-size:12px; color:var(--t1); margin-bottom:4px;">Método Bola de Nieve — El más motivador psicológicamente</div>
+          <div style="font-size:11px; color:var(--t3); line-height:1.6;">Paga el <strong style="color:var(--t2);">mínimo en todas</strong> y liquida primero la deuda <strong style="color:var(--a1);">más pequeña</strong>. Cada victoria te da energía para la siguiente.</div>
+        </div>
+      </div>`;
+  }
+
+  const primeraVivaId = copia.find(d => (d.total - d.pagado) > 0)?.id;
+
+  const iconoTipoMap   = { tarjeta:'💳', credito:'🏦', hipoteca:'🏠', vehiculo:'🚗', educacion:'🎓', persona:'👤', salud:'🏥', otro:'📦' };
+  const nombreTipoMap  = { tarjeta:'Tarjeta de Crédito', credito:'Crédito Libre Inversión', hipoteca:'Crédito Hipotecario', vehiculo:'Crédito Vehicular', educacion:'Crédito Educativo', persona:'Préstamo Personal', salud:'Deuda Médica', otro:'Otra Deuda' };
+  const consejoMap     = {
+    tarjeta:   { texto: `💳 <strong>Truco clave:</strong> Compra siempre a <strong>1 sola cuota</strong> y paga el total antes del corte. Nunca saques plata en efectivo con la tarjeta — cobra intereses desde el primer día sin período de gracia.`, ley: '' },
+    credito:   { texto: `🏦 <strong>Tu derecho:</strong> Puedes pagar más del mínimo sin multa. Pide <strong>"abono extraordinario a capital con reducción de plazo"</strong>.`, ley: 'Ley 546/1999' },
+    hipoteca:  { texto: `🏠 <strong>Ahorra millones:</strong> Puedes llevar tu crédito hipotecario a otro banco con mejor tasa sin penalización.`, ley: 'Ley 546/1999, Art. 20' },
+    vehiculo:  { texto: `🚗 <strong>Sal más rápido:</strong> Haz abonos extra a capital cuando puedas.`, ley: '' },
+    educacion: { texto: `🎓 <strong>Busca alivios:</strong> El ICETEX tiene períodos de gracia y programas de apoyo. Llama y pregunta antes de entrar en mora.`, ley: 'Ley 1002/2005' },
+    persona:   { texto: `👤 <strong>Regla de oro:</strong> Aunque sea con un familiar, escribe en un papel cuánto debes y cuándo pagas. Ambos firman.`, ley: '' },
+    salud:     { texto: `🏥 <strong>Negocia sin miedo:</strong> Las clínicas prefieren recibir algo a no recibir nada. Pregunta por descuento de contado o plan sin intereses.`, ley: '' },
+    otro:      { texto: `📦 <strong>3 reglas:</strong> Nunca ignores una deuda. Siempre negocia. Paga primero la de mayor tasa.`, ley: '' }
+  };
+
+  el.innerHTML = copia.map(d => {
+    const pend        = Math.max(0, d.total - d.pagado);
+    const p           = d.total > 0 ? Math.min((d.pagado / d.total) * 100, 100) : 0;
+    const esPrioridad = d.id === primeraVivaId;
+    const icono       = iconoTipoMap[d.tipo]  || '📦';
+    const nombreTipo  = nombreTipoMap[d.tipo] || 'Otra Deuda';
+    const { texto: consejoTexto, ley: consejoLey } = consejoMap[d.tipo] || { texto: '', ley: '' };
+    const colorBarra  = p >= 100 ? 'var(--a1)' : p > 50 ? 'var(--a2)' : 'var(--a4)';
+    const textoBarra  = p >= 100 ? '🏆 ¡Pagada!' : p > 0 ? `${Math.round(p)}% pagado` : '';
+    const borderLeft  = esPrioridad ? (modo === 'avalancha' ? 'border-left:4px solid var(--dan);' : 'border-left:4px solid var(--a1);') : 'border-left:4px solid transparent;';
+    const badgePrio   = esPrioridad
+      ? (modo === 'avalancha'
+        ? `<span style="background:rgba(255,68,68,.12); color:var(--dan); border:1px solid rgba(255,68,68,.2); font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px;">🔥 ATACAR PRIMERO</span>`
+        : `<span style="background:rgba(0,220,130,.12); color:var(--a1); border:1px solid rgba(0,220,130,.2); font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px;">⛄ ATACAR PRIMERO</span>`)
+      : '';
+
+    // Proyección de liberación
+    const mesesRestantes = d.cuota > 0 ? Math.ceil(pend / d.cuota) : 0;
+    let tiempoTexto = '';
+    if (pend <= 0)              tiempoTexto = `<span style="color:var(--a1); font-weight:700;">🏆 ¡Esta deuda está saldada!</span>`;
+    else if (mesesRestantes === 1) tiempoTexto = `<span style="color:var(--a1); font-weight:700;">🔥 ¡Solo te falta 1 mes para liquidarla!</span>`;
+    else if (mesesRestantes <= 6)  tiempoTexto = `<span style="color:var(--a2);">📅 Pagando tu cuota cada mes, en <strong>${mesesRestantes} meses</strong> quedas libre.</span>`;
+    else {
+      const anos = Math.floor(mesesRestantes / 12);
+      const meses = mesesRestantes % 12;
+      const tiempo = anos > 0 ? `${anos} año${anos > 1 ? 's' : ''}${meses > 0 ? ` y ${meses} mes${meses > 1 ? 'es' : ''}` : ''}` : `${mesesRestantes} meses`;
+      tiempoTexto = `<span style="color:var(--t3);">📅 Pagando tu cuota cada mes, en <strong style="color:var(--t2);">${tiempo}</strong> quedas libre.</span>`;
+    }
+
+    // Interés mensual para detectar "trampa del mínimo"
+    const alertaMora  = _obtenerAlertaMora(d);
+    const consejoAbierto = esPrioridad && consejoTexto;
+
+    return `
+    <article class="deuda-card-animada gc"
+      style="background:var(--s1); border:1px solid var(--b1); border-radius:16px; margin-bottom:16px; overflow:hidden; ${borderLeft} animation-delay:${copia.indexOf(d) * 0.08}s;"
+      aria-label="Deuda: ${he(d.nombre)}">
+
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; padding:20px 20px 16px; border-bottom:1px solid var(--b1); flex-wrap:wrap; gap:12px;">
+        <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
+          <div style="width:44px; height:44px; border-radius:12px; background:var(--s2); border:1px solid var(--b2); display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;" aria-hidden="true">${icono}</div>
+          <div style="min-width:0;">
+            <div style="font-weight:800; font-size:17px; color:var(--t1); line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${he(d.nombre)}</div>
+            <div style="font-size:11px; color:var(--t3); margin-top:3px;">${nombreTipo}${d.tasa > 0 ? ` · ${d.tasa}% E.A.` : ''} · ${d.periodicidad}</div>
+            <div style="margin-top:6px;">${badgePrio}</div>
+          </div>
+        </div>
+        <div style="text-align:right; flex-shrink:0;">
+          <div style="font-size:10px; font-weight:700; color:var(--t3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Cuota a pagar</div>
+          <div style="font-family:var(--fm); font-size:26px; font-weight:800; color:var(--t1); line-height:1;">${f(d.cuota)}</div>
+          ${d.diaPago ? `<div style="font-size:10px; color:var(--t3); margin-top:4px;">📅 Día ${d.diaPago} de cada mes</div>` : ''}
+        </div>
+      </div>
+
+      <div style="padding:16px 20px; border-bottom:1px solid var(--b1);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:12px;">
+          <div>
+            <div style="font-size:10px; color:var(--t3); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Saldo pendiente</div>
+            <div style="font-family:var(--fm); font-size:24px; font-weight:800; color:var(--dan);">${f(pend)}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:10px; color:var(--t3); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Ya pagaste</div>
+            <div style="font-family:var(--fm); font-size:24px; font-weight:800; color:${colorBarra};">${f(d.pagado)}</div>
+          </div>
+        </div>
+        <div style="height:10px; background:var(--s3); border-radius:999px; overflow:hidden; margin-bottom:8px;" role="progressbar" aria-valuenow="${Math.round(p)}" aria-valuemin="0" aria-valuemax="100">
+          <div style="height:100%; width:${p}%; background:${colorBarra}; border-radius:999px; transition:width .6s ease;"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <span style="font-size:11px; color:${p > 0 ? colorBarra : 'var(--t3)'}; font-weight:${p > 0 ? '700' : '400'};">${textoBarra || 'Aún no has abonado a esta deuda'}</span>
+          <span style="font-size:11px; color:var(--t3);">Total: ${f(d.total)}</span>
+        </div>
+        <div style="font-size:12px; line-height:1.5;">${tiempoTexto}</div>
+        ${alertaMora}
+      </div>
+
+      <div style="padding:14px 20px;">
+        ${consejoTexto ? `
+        <div style="margin-bottom:12px;">
+          <button id="btn-consejo-${d.id}" aria-expanded="${consejoAbierto}" aria-controls="consejo-${d.id}"
+            onclick="const c=document.getElementById('consejo-${d.id}');const btn=document.getElementById('btn-consejo-${d.id}');const ab=c.style.display==='block';c.style.display=ab?'none':'block';btn.setAttribute('aria-expanded',ab?'false':'true');btn.querySelector('.consejo-txt').textContent=ab?'💡 Ver consejo':'💡 Ocultar consejo';"
+            style="background:none; border:none; color:var(--a4); font-size:12px; font-weight:600; cursor:pointer; padding:0; display:flex; align-items:center; gap:6px;">
+            <span class="consejo-txt">${consejoAbierto ? '💡 Ocultar consejo' : '💡 Ver consejo'}</span>
+          </button>
+          <div id="consejo-${d.id}" style="display:${consejoAbierto ? 'block' : 'none'}; margin-top:8px; padding:12px; background:var(--s2); border:1px solid var(--b2); border-left:3px solid var(--a4); border-radius:8px; font-size:12px; color:var(--t2); line-height:1.6;">
+            ${consejoTexto}
+            ${consejoLey ? `<div style="margin-top:8px;"><span style="display:inline-flex; align-items:center; gap:4px; background:var(--s3); border:1px solid var(--b2); border-radius:6px; padding:3px 8px; font-size:10px; font-weight:700; color:var(--t3); font-family:var(--fm);">⚖️ ${consejoLey}</span></div>` : ''}
+          </div>
+        </div>` : ''}
+        <div class="deu-card-footer">
+          <button class="btn bg bsm" onclick="abrirEditarDeuda(${d.id})" aria-label="Editar ${he(d.nombre)}">✏️ Editar</button>
+          <button class="btn-eliminar-deu" onclick="delDeu(${d.id})" aria-label="Eliminar ${he(d.nombre)}">🗑️ Eliminar</button>
+          <button class="btn bp btn-pagar-cuota" onclick="abrirPagarCuota(${d.id})" aria-label="Pagar cuota de ${he(d.nombre)}">Pagar Cuota →</button>
+        </div>
+      </div>
+    </article>`;
+  }).join('');
+}
+
+// ─── PAGAR CUOTA ─────────────────────────────────────────────────────────────
+export function abrirPagarCuota(id) {
+  const d = S.deudas.find(x => x.id === id); if (!d) return;
+  const pendiente = Math.max(0, d.total - d.pagado);
+  const pct       = d.total > 0 ? Math.min(Math.round((d.pagado / d.total) * 100), 100) : 0;
+  const nuevoPct  = d.total > 0 ? Math.min(Math.round(((d.pagado + d.cuota) / d.total) * 100), 100) : 0;
+
+  setEl('pgc-no',       d.nombre);
+  setEl('pgc-mo',       f(d.cuota));
+  setEl('pgc-pagado',   f(d.pagado));
+  setEl('pgc-pct',      `${pct}% pagado → ${nuevoPct}% al confirmar`);
+  setEl('pgc-pendiente', `Pendiente: ${f(pendiente)}`);
+  const barra = document.getElementById('pgc-barra');
+  if (barra) barra.style.width = `${pct}%`;
+  document.getElementById('pgc-id').value = id;
+  window.actualizarListasFondos?.();
+  openM('m-pgc');
+}
+
+export async function confPagarCuota() {
+  const id = +document.getElementById('pgc-id').value;
+  const d  = S.deudas.find(x => x.id === id);
+  if (!d) { closeM('m-pgc'); return; }
+
+  const fo   = document.getElementById('pgc-fo').value;
+  let   disp = fo === 'efectivo' ? S.saldos.efectivo
+    : fo.startsWith('cuenta_') ? (S.cuentas.find(x => x.id === +fo.split('_')[1])?.saldo ?? 0)
+    : S.saldos.banco;
+
+  if (disp < d.cuota) {
+    const ok = await showConfirm(`⚠️ Saldo insuficiente (${f(disp)} disponible).\n¿Pagar de todas formas?`, 'Saldo');
+    if (!ok) return;
+  }
+
+  _desF(fo, d.cuota);
+  d.pagado = Math.min(d.pagado + d.cuota, d.total);
+  S.gastos.unshift({
+    id: Date.now(), desc: `💳 Cuota: ${d.nombre}`, monto: d.cuota, montoTotal: d.cuota,
+    cat: 'deudas', tipo: 'necesidad', fondo: fo, hormiga: false, cuatroXMil: false,
+    fecha: hoy(), metaId: '', autoFijo: false
+  });
+  closeM('m-pgc'); save(); renderSmart(['deudas', 'gastos']);
+}
+
+// ─── EDITAR ──────────────────────────────────────────────────────────────────
+export function abrirEditarDeuda(id) {
+  const d = S.deudas.find(x => x.id === id); if (!d) return;
+  document.getElementById('ed-id').value  = id;
+  document.getElementById('ed-no').value  = d.nombre;
+  document.getElementById('ed-ti').value  = d.tipo;
+  document.getElementById('ed-to').value  = d.total;
+  document.getElementById('ed-cu').value  = d.cuota;
+  document.getElementById('ed-pe').value  = d.periodicidad;
+  document.getElementById('ed-ta').value  = d.tasa;
+  document.getElementById('ed-dia').value = d.diaPago || 1;
+  openM('m-edit-deu');
+}
+
+export async function guardarEditarDeuda() {
+  const id        = +document.getElementById('ed-id').value;
+  const d         = S.deudas.find(x => x.id === id); if (!d) return;
+  const nuevoTotal = +document.getElementById('ed-to').value;
+  const nuevaCuota = +document.getElementById('ed-cu').value;
+  if (!nuevoTotal || !nuevaCuota) { await showAlert('El saldo y la cuota no pueden estar vacíos.', 'Faltan datos'); return; }
+  d.nombre       = document.getElementById('ed-no').value.trim();
+  d.tipo         = document.getElementById('ed-ti').value;
+  d.total        = nuevoTotal; d.cuota = nuevaCuota;
+  d.periodicidad = document.getElementById('ed-pe').value;
+  d.tasa         = +document.getElementById('ed-ta').value || 0;
+  d.diaPago      = +document.getElementById('ed-dia').value || 1;
+  closeM('m-edit-deu'); save(); renderSmart(['deudas']);
+}
+
+export async function delDeu(id) {
+  const ok = await showConfirm('¿Eliminar deuda?', 'Eliminar'); if (!ok) return;
+  S.deudas = S.deudas.filter(d => d.id !== id); save(); renderSmart(['deudas']);
+}
+
+// ─── SELECCIÓN UI ────────────────────────────────────────────────────────────
+function _selTipoDeudaBase(inputId, selectorClass, tipo, el) {
+  document.getElementById(inputId).value = tipo;
+  document.querySelectorAll(selectorClass).forEach(b => {
+    b.style.background = 'var(--s2)'; b.style.border = '2px solid var(--b2)';
+    b.querySelector('span:last-child').style.color = 'var(--t3)';
+  });
+  el.style.background = 'rgba(59,158,255,.1)'; el.style.border = '2px solid var(--a4)';
+  el.querySelector('span:last-child').style.color = 'var(--a4)';
+}
+
+function _selFrecDeudaBase(inputId, idMensual, idQuincenal, frec) {
+  document.getElementById(inputId).value = frec;
+  const btnM = document.getElementById(idMensual);
+  const btnQ = document.getElementById(idQuincenal);
+  if (!btnM || !btnQ) return;
+  const activo   = { border: '2px solid var(--a1)', background: 'rgba(0,220,130,.1)', color: 'var(--a1)' };
+  const inactivo = { border: '2px solid var(--b2)', background: 'var(--s2)',           color: 'var(--t3)' };
+  const esMensual = frec === 'mensual';
+  Object.assign(btnM.style, esMensual ? activo : inactivo);
+  Object.assign(btnQ.style, esMensual ? inactivo : activo);
+}
+
+export function selTipoDeuda(tipo, el)     { _selTipoDeudaBase('dn-ti', '.btn-tipo-deuda',      tipo, el); }
+export function selTipoDeudaEdit(tipo, el) { _selTipoDeudaBase('ed-ti', '.btn-tipo-deuda-edit', tipo, el); }
+export function selFrecDeuda(frec)         { _selFrecDeudaBase('dn-pe', 'btn-frec-mensual',       'btn-frec-quincenal',      frec); }
+export function selFrecDeudaEdit(frec)     { _selFrecDeudaBase('ed-pe', 'btn-edit-frec-mensual',  'btn-edit-frec-quincenal', frec); }
+
+// ─── AVISOS INTELIGENTES ─────────────────────────────────────────────────────
+function _renderAvisosDeudas(pct, totD) {
+  const avisosEl = document.getElementById('de-avisos'); if (!avisosEl) return;
+  const deudasVivas = S.deudas.filter(d => (d.total - d.pagado) > 0);
+  const avisos = [];
+
+  // Tasa de usura (constante TASA_USURA_EA de constants.js)
+  const deudasUsura = deudasVivas.filter(d => (d.tasa || 0) > TASA_USURA_EA);
+  if (deudasUsura.length) {
+    avisos.push(`<div style="display:flex; align-items:flex-start; gap:12px; padding:14px 24px; border-bottom:1px solid var(--b1); background:rgba(255,68,68,.03);">
+      <span style="font-size:20px; flex-shrink:0;">⚖️</span>
+      <div style="flex:1;">
+        <div style="font-weight:700; font-size:12px; color:var(--dan); margin-bottom:3px;">Posible cobro ilegal — Tasa de Usura</div>
+        <div style="font-size:11px; color:var(--t3); line-height:1.6;"><strong style="color:var(--t2);">${deudasUsura.map(d => d.nombre).join(', ')}</strong> supera el límite legal (${TASA_USURA_EA}% E.A.). En Colombia cobrar por encima de la tasa de usura es un delito. <span style="background:var(--s2); border:1px solid var(--b2); border-radius:4px; padding:2px 6px; font-size:10px; font-weight:700; font-family:var(--fm);">⚖️ Art. 305 C.P.</span></div>
+      </div>
+    </div>`);
+  }
+
+  // Compra de cartera — 2+ deudas con tasa >= 2%
+  const deudasCaras = deudasVivas.filter(d => (d.tasa || 0) >= 2);
+  if (deudasCaras.length >= 2) {
+    const totalCaro = deudasCaras.reduce((s, d) => s + (d.total - d.pagado), 0);
+    avisos.push(`<div style="display:flex; align-items:flex-start; gap:12px; padding:14px 24px; border-bottom:1px solid var(--b1); background:rgba(59,158,255,.03);">
+      <span style="font-size:20px; flex-shrink:0;">🏦</span>
+      <div style="flex:1;">
+        <div style="font-weight:700; font-size:12px; color:var(--a4); margin-bottom:3px;">Oportunidad: une tus deudas caras en una sola</div>
+        <div style="font-size:11px; color:var(--t3); line-height:1.6;">Tienes <strong style="color:var(--t2);">${deudasCaras.length} deudas con tasas altas</strong> que suman <strong style="color:var(--t2);">${f(totalCaro)}</strong>. Pregunta por una <strong style="color:var(--a4);">compra de cartera</strong> en tu banco.</div>
+      </div>
+    </div>`);
+  }
+
+  // Trampa del mínimo — cuota apenas cubre intereses
+  const deudasEstancadas = deudasVivas.filter(d => {
+    if (!d.tasa || d.tasa <= 0 || !d.cuota) return false;
+    const tm = Math.pow(1 + d.tasa / 100, 1 / 12) - 1;
+    return d.cuota <= (d.total - d.pagado) * tm * 1.1;
+  });
+  if (deudasEstancadas.length) {
+    avisos.push(`<div style="display:flex; align-items:flex-start; gap:12px; padding:14px 24px; border-bottom:1px solid var(--b1); background:rgba(255,68,68,.03);">
+      <span style="font-size:20px; flex-shrink:0;">🚨</span>
+      <div style="flex:1;">
+        <div style="font-weight:700; font-size:12px; color:var(--dan); margin-bottom:3px;">Trampa del mínimo — tu deuda casi no baja</div>
+        <div style="font-size:11px; color:var(--t3); line-height:1.6;">En <strong style="color:var(--t2);">${deudasEstancadas.map(d => d.nombre).join(', ')}</strong> tu cuota solo alcanza a cubrir los intereses del mes. Pagar $20.000–$50.000 extra puede cambiar completamente cuándo te liberas.</div>
+      </div>
+    </div>`);
+  }
+
+  // Refinanciación — >= 50% pagado
+  const candidatasRefin = deudasVivas.filter(d => {
+    const p = d.total > 0 ? (d.pagado / d.total) * 100 : 0;
+    return p >= 50 && (d.tasa || 0) >= 1.5;
+  });
+  if (candidatasRefin.length) {
+    avisos.push(`<div style="display:flex; align-items:flex-start; gap:12px; padding:14px 24px; border-bottom:1px solid var(--b1); background:rgba(0,220,130,.03);">
+      <span style="font-size:20px; flex-shrink:0;">🔄</span>
+      <div style="flex:1;">
+        <div style="font-weight:700; font-size:12px; color:var(--a1); margin-bottom:3px;">Momento ideal para negociar una mejor tasa</div>
+        <div style="font-size:11px; color:var(--t3); line-height:1.6;">Ya llevas más del 50% pagado en <strong style="color:var(--t2);">${candidatasRefin.map(d => d.nombre).join(', ')}</strong>. Eso te convierte en buen cliente. Llama al banco y pide que te bajen la tasa.</div>
+      </div>
+    </div>`);
+  }
+
+  // Regla del 20%
+  if (pct > 20 && pct <= 40 && S.ingreso > 0) {
+    avisos.push(`<div style="display:flex; align-items:flex-start; gap:12px; padding:14px 24px; border-bottom:1px solid var(--b1); background:rgba(255,214,10,.03);">
+      <span style="font-size:20px; flex-shrink:0;">⚠️</span>
+      <div style="flex:1;">
+        <div style="font-weight:700; font-size:12px; color:var(--a2); margin-bottom:3px;">Más del 20% de tu ingreso va en deudas</div>
+        <div style="font-size:11px; color:var(--t3); line-height:1.6;">Estás en el <strong style="color:var(--t2);">${pct}%</strong>. No adquieras nuevas deudas por ahora.</div>
+      </div>
+    </div>`);
+  }
+
+  // Sin fondo de emergencia
+  if ((S.fondoEmergencia?.actual || 0) === 0 && deudasVivas.length) {
+    avisos.push(`<div style="display:flex; align-items:flex-start; gap:12px; padding:14px 24px; border-bottom:1px solid var(--b1); background:rgba(180,78,255,.03);">
+      <span style="font-size:20px; flex-shrink:0;">🛡️</span>
+      <div style="flex:1;">
+        <div style="font-weight:700; font-size:12px; color:var(--a5); margin-bottom:3px;">Sin colchón de emergencia — riesgo alto</div>
+        <div style="font-size:11px; color:var(--t3); line-height:1.6;">Guarda aunque sea el 5%–10% de tu ingreso en un lugar separado antes de pagar más deuda.</div>
+      </div>
+    </div>`);
+  }
+
+  // Felicitación — control saludable
+  if (pct > 0 && pct <= 20 && deudasVivas.length) {
+    avisos.push(`<div style="display:flex; align-items:flex-start; gap:12px; padding:14px 24px; border-bottom:1px solid var(--b1); background:rgba(0,220,130,.03);">
+      <span style="font-size:20px; flex-shrink:0;">🌟</span>
+      <div style="flex:1;">
+        <div style="font-weight:700; font-size:12px; color:var(--a1); margin-bottom:3px;">Tus deudas están bajo control</div>
+        <div style="font-size:11px; color:var(--t3); line-height:1.6;">Solo el <strong style="color:var(--a1);">${pct}%</strong> de tu ingreso va en deudas. Cuando las termines, redirige esas cuotas al ahorro.</div>
+      </div>
+    </div>`);
+  }
+
+  // Mora por días (Ley 1266) — deudas formales
+  const tiposFormales = ['tarjeta', 'credito', 'hipoteca', 'vehiculo', 'educacion', 'salud'];
+  const hoyMora = new Date(); hoyMora.setHours(0, 0, 0, 0);
+  const deudasConMora = deudasVivas
+    .filter(d => tiposFormales.includes(d.tipo) && d.diaPago)
+    .map(d => {
+      const ultima = new Date(hoyMora.getFullYear(), hoyMora.getMonth(), Math.min(d.diaPago, new Date(hoyMora.getFullYear(), hoyMora.getMonth() + 1, 0).getDate()));
+      const mesVerif = `${ultima.getFullYear()}-${String(ultima.getMonth() + 1).padStart(2, '0')}`;
+      const pagado   = S.gastos.some(g => g.cat === 'deudas' && g.fecha.startsWith(mesVerif) && g.desc.includes(d.nombre));
+      if (pagado) return null;
+      const diasMora = Math.floor((hoyMora - ultima) / 86_400_000);
+      return diasMora > 0 ? { d, diasMora } : null;
+    })
+    .filter(Boolean);
+
+  const m30 = deudasConMora.filter(x => x.diasMora >= 30 && x.diasMora < 60);
+  const m60 = deudasConMora.filter(x => x.diasMora >= 60 && x.diasMora < 90);
+  const m90 = deudasConMora.filter(x => x.diasMora >= 90);
+
+  if (m90.length) avisos.push(`<div style="display:flex; align-items:flex-start; gap:12px; padding:14px 24px; border-bottom:1px solid var(--b1); background:rgba(255,68,68,.03);">
+    <span style="font-size:20px; flex-shrink:0;">🚨</span>
+    <div style="flex:1;"><div style="font-weight:700; font-size:12px; color:var(--dan); margin-bottom:3px;">Riesgo de reporte en Datacrédito</div>
+    <div style="font-size:11px; color:var(--t3); line-height:1.6;"><strong>${m90.map(x => x.d.nombre).join(', ')}</strong> lleva${m90.length > 1 ? 'n' : ''} más de 90 días sin pago. El banco debe avisarte con <strong>20 días de anticipación</strong> antes de reportarte (Ley 1266/2008, Art. 13). Actúa hoy.</div></div>
+  </div>`);
+  if (m60.length) avisos.push(`<div style="display:flex; align-items:flex-start; gap:12px; padding:14px 24px; border-bottom:1px solid var(--b1); background:rgba(255,107,53,.03);">
+    <span style="font-size:20px; flex-shrink:0;">📞</span>
+    <div style="flex:1;"><div style="font-weight:700; font-size:12px; color:var(--a3); margin-bottom:3px;">El banco puede llamarte a negociar</div>
+    <div style="font-size:11px; color:var(--t3); line-height:1.6;"><strong>${m60.map(x => x.d.nombre).join(', ')}</strong> lleva${m60.length > 1 ? 'n' : ''} entre 60–90 días sin pago. Llama tú primero y negocia antes de llegar a los 90 días críticos.</div></div>
+  </div>`);
+  if (m30.length) avisos.push(`<div style="display:flex; align-items:flex-start; gap:12px; padding:14px 24px; border-bottom:1px solid var(--b1); background:rgba(255,214,10,.03);">
+    <span style="font-size:20px; flex-shrink:0;">⏳</span>
+    <div style="flex:1;"><div style="font-weight:700; font-size:12px; color:var(--a2); margin-bottom:3px;">Retraso detectado</div>
+    <div style="font-size:11px; color:var(--t3); line-height:1.6;"><strong>${m30.map(x => x.d.nombre).join(', ')}</strong> lleva${m30.length > 1 ? 'n' : ''} más de 30 días sin pago. Paga pronto para no llegar a los 90 días críticos.</div></div>
+  </div>`);
+
+  avisosEl.innerHTML = avisos.join('');
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function _desF(fo, mo) {
+  if (fo === 'efectivo') S.saldos.efectivo = Math.max(0, S.saldos.efectivo - mo);
+  else if (fo.startsWith('cuenta_')) {
+    const c = S.cuentas.find(x => x.id === +fo.split('_')[1]);
+    if (c) c.saldo = Math.max(0, c.saldo - mo);
+    S.saldos.banco = S.cuentas.reduce((s, c) => s + c.saldo, 0);
+  } else { S.saldos.banco = Math.max(0, S.saldos.banco - mo); }
+  updSaldo();
+}
+
+// ─── EXPOSICIÓN GLOBAL ───────────────────────────────────────────────────────
+window.guardarDeuda       = guardarDeuda;
+window.renderDeudas       = renderDeudas;
+window.setModoDeuda       = setModoDeuda;
+window.abrirPagarCuota    = abrirPagarCuota;
+window.confPagarCuota     = confPagarCuota;
+window.abrirEditarDeuda   = abrirEditarDeuda;
+window.guardarEditarDeuda = guardarEditarDeuda;
+window.delDeu             = delDeu;
+window.selTipoDeuda       = selTipoDeuda;
+window.selTipoDeudaEdit   = selTipoDeudaEdit;
+window.selFrecDeuda       = selFrecDeuda;
+window.selFrecDeudaEdit   = selFrecDeudaEdit;
